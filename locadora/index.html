@@ -1,0 +1,594 @@
+<title>Gestão da Locadora</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: app de bolso — cabeçalho fixo, conteúdo em coluna única (até 960px), navegação inferior; formulários abrem numa folha deslizante. */
+:root{
+  --bg:#F2F5F4; --surface:#FFFFFF; --surface2:#E7EDEB; --line:#D3DCD9;
+  --fg:#13201C; --muted:#56675F; --accent:#0B6B5B; --accent-fg:#FFFFFF; --accent-soft:#D3ECE5;
+  --in:#0D7A44; --out:#B3261E; --warn:#9A5600; --warn-soft:#FBEACF; --bad-soft:#F8DCD9;
+  --plate-bg:#FFFFFF; --plate-fg:#111111; --plate-band:#0A3A9C; --plate-line:#9AA5A1;
+  --shadow:0 10px 30px rgba(10,40,34,.18);
+  --f-display:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1412; --surface:#151F1C; --surface2:#1C2925; --line:#2A3934;
+  --fg:#E4EDEA; --muted:#93A69F; --accent:#52C2A8; --accent-fg:#05221C; --accent-soft:#15352D;
+  --in:#4FCB8C; --out:#F2877E; --warn:#F0B45C; --warn-soft:#3A2A11; --bad-soft:#3E1D1A;
+  --plate-line:#5d6b67; --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0D1412; --surface:#151F1C; --surface2:#1C2925; --line:#2A3934;
+  --fg:#E4EDEA; --muted:#93A69F; --accent:#52C2A8; --accent-fg:#05221C; --accent-soft:#15352D;
+  --in:#4FCB8C; --out:#F2877E; --warn:#F0B45C; --warn-soft:#3A2A11; --bad-soft:#3E1D1A;
+  --plate-line:#5d6b67; --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in,.wrap{max-width:960px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top-in{display:flex;align-items:center;gap:12px;padding-block:12px}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center;flex:none}
+.brand h1{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand small{display:block;color:var(--muted);font-size:12px;font-family:var(--f-body)}
+.top .sp{flex:1}
+.wrap{padding-block:18px calc(96px + env(safe-area-inset-bottom,0px))}
+
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav-in{max-width:960px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);padding-left:max(4px,env(safe-area-inset-left,0px));padding-right:max(4px,env(safe-area-inset-right,0px))}
+.nav button{background:none;border:0;padding:9px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:500;color:var(--muted);cursor:pointer}
+.nav button svg{width:22px;height:22px}
+.nav button[aria-current="page"]{color:var(--accent)}
+.nav button[aria-current="page"] .pill{background:var(--accent-soft)}
+.nav .pill{padding:3px 14px;border-radius:99px;display:grid;place-items:center}
+
+.banner{border-radius:12px;padding:12px 14px;margin-bottom:16px;background:var(--warn-soft);color:var(--fg);border:1px solid var(--line);font-size:14px}
+.sec{display:grid;gap:12px;margin-bottom:26px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sec-h h2{font-size:19px}
+.eyebrow{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
+.kpi b{display:block;font-family:var(--f-display);font-size:clamp(17px,4.6vw,24px);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi.in b{color:var(--in)} .kpi.out b{color:var(--out)}
+@media (max-width:520px){.kpis{grid-template-columns:1fr 1fr}.kpis .kpi.bal{grid-column:1 / -1}}
+
+.fleet{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:3px 10px;font-size:12.5px;font-weight:600;background:var(--surface2);color:var(--fg);white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--out)}
+.chip.ex{background:var(--surface2);color:var(--muted);font-weight:500}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+
+.list{display:grid;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;min-width:0}
+.row{display:flex;align-items:center;gap:12px;min-width:0}
+.row .grow{flex:1;min-width:0}
+.t{font-weight:600}
+.sub{color:var(--muted);font-size:13.5px}
+.ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.alert{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:12px;padding:11px 13px}
+.alert.bad{border-left-color:var(--out)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;border:1px solid var(--line);background:var(--surface);padding:8px 13px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--surface2)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.pri:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--out)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn svg{width:16px;height:16px}
+.icon-btn{background:none;border:0;padding:6px;border-radius:8px;cursor:pointer;color:var(--muted)}
+
+/* placa no padrão Mercosul */
+.plate{flex:none;width:96px;border:2px solid var(--plate-line);border-radius:7px;background:var(--plate-bg);color:var(--plate-fg);overflow:hidden;text-align:center}
+.plate i{display:block;background:var(--plate-band);color:#fff;font-style:normal;font-size:7.5px;letter-spacing:.2em;font-weight:700;padding:1px 0;font-family:var(--f-body)}
+.plate span{display:block;font-family:var(--f-mono);font-weight:700;font-size:15px;letter-spacing:.04em;padding:3px 2px 4px}
+.plate.moto{width:70px}
+.plate.moto span{font-size:12.5px;line-height:1.15;padding:2px 2px 3px}
+
+.search{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+
+.money.in{color:var(--in)} .money.out{color:var(--out)}
+.tx{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.tx:first-child{border-top:0}
+.tx-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--surface2);flex:none}
+.tx-ic.in{color:var(--in)} .tx-ic.out{color:var(--out)}
+.tx-ic svg{width:18px;height:18px}
+.tx .money{font-weight:700;font-family:var(--f-mono);font-size:14px;white-space:nowrap}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px 14px}
+
+.monthbar{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.monthbar b{flex:1;text-align:center;font-family:var(--f-display)}
+
+.chart{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:end;height:150px;padding:10px 4px 0}
+.chart .col{display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;min-width:0}
+.chart .bars{flex:1;width:100%;display:flex;gap:3px;align-items:flex-end;justify-content:center;border-bottom:1px solid var(--line)}
+.chart .b{width:min(18px,40%);border-radius:4px 4px 0 0;min-height:2px}
+.chart .b.in{background:var(--in)} .chart .b.out{background:var(--out)}
+.chart small{font-size:11px;color:var(--muted);text-transform:capitalize}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--muted);display:grid;gap:10px;justify-items:center}
+
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 8px;border-top:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:600;border-top:0}
+td.r,th.r{text-align:right}
+
+/* folha do formulário */
+.sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(5,15,12,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:640px;max-height:92%;overflow:auto;border-radius:18px 18px 0 0;box-shadow:var(--shadow);padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:700px){.sheet-bg{align-items:center}.sheet{border-radius:18px;max-height:88%}}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.sheet-h h2{font-size:20px}
+form{display:grid;gap:14px}
+fieldset{border:0;padding:0;margin:0;display:grid;gap:12px}
+legend{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;padding:0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.grid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.full{grid-column:1 / -1}
+@media (max-width:460px){.grid.g3{grid-template-columns:1fr 1fr}}
+label.f{display:grid;gap:5px;font-size:13px;font-weight:600;color:var(--muted);min-width:0}
+label.f input,label.f select,label.f textarea{width:100%;padding:10px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font-weight:400;font-size:16px;min-width:0}
+label.f textarea{min-height:64px;resize:vertical}
+.hint{font-size:12.5px;font-weight:400;color:var(--muted)}
+.hint.ok{color:var(--in)} .hint.bad{color:var(--out)}
+.seg{display:flex;background:var(--surface2);border-radius:11px;padding:3px;gap:3px}
+.seg label{flex:1;text-align:center;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:block;padding:8px;border-radius:8px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg input:checked + span{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg input:focus-visible + span{outline:2px solid var(--accent)}
+.note{background:var(--surface2);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted)}
+.form-foot{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom,0px));background:var(--surface);padding:12px 0 4px;border-top:1px solid var(--line)}
+.form-foot .r{display:flex;gap:8px;margin-left:auto}
+.sum{font-family:var(--f-mono);font-weight:700}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}}
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6 17l1.5-6.5A2 2 0 0 1 9.4 9h5.2a2 2 0 0 1 1.9 1.5L18 17"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/></svg></div>
+      <div><h1>Gestão da Locadora</h1><small id="sync">Conectando…</small></div>
+    </div>
+    <div class="sp"></div>
+    <button class="btn pri sm" data-act="quick" id="quick-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Lançar</button>
+  </div>
+</header>
+
+<main class="wrap" id="main"></main>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" id="nav">
+    <button data-view="painel"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>Painel</button>
+    <button data-view="veiculos"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6 17l1.5-6.5A2 2 0 0 1 9.4 9h5.2a2 2 0 0 1 1.9 1.5L18 17"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/></svg></span>Veículos</button>
+    <button data-view="clientes"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M15 10h3M15 13.5h3"/></svg></span>Clientes</button>
+    <button data-view="locacoes"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></svg></span>Locações</button>
+    <button data-view="caixa"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg></span>Caixa</button>
+  </div>
+</nav>
+
+<div id="sheet-root"></div>
+<div id="toast-root"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- utilidades ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const brl=n=>(+n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const pad=n=>String(n).padStart(2,"0");
+const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const todayIso=()=>iso(new Date());
+const pd=s=>{if(!s)return null;const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const fd=s=>s?s.split("-").reverse().join("/"):"—";
+const days=(a,b)=>Math.round((pd(b)-pd(a))/864e5);
+const ymOf=s=>(s||"").slice(0,7);
+const ymNow=()=>todayIso().slice(0,7);
+const ymShift=(ym,n)=>{const[y,m]=ym.split("-").map(Number);const d=new Date(y,m-1+n,1);return d.getFullYear()+"-"+pad(d.getMonth()+1)};
+const ymLabel=(ym,short)=>{const[y,m]=ym.split("-").map(Number);const d=new Date(y,m-1,1);return short?d.toLocaleDateString("pt-BR",{month:"short"}).replace(".",""):(s=>s.charAt(0).toUpperCase()+s.slice(1))(d.toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))};
+const digits=s=>String(s||"").replace(/\D/g,"");
+const fmtCpf=s=>{const d=digits(s);return d.length===11?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,"$1.$2.$3-$4"):s||""};
+const cpfOk=s=>{const c=digits(s);if(c.length!==11||/^(\d)\1+$/.test(c))return false;for(let t=9;t<11;t++){let x=0;for(let i=0;i<t;i++)x+=+c[i]*(t+1-i);if((x*10)%11%10!==+c[t])return false}return true};
+const normPlate=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+const plateOk=s=>/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(normPlate(s));
+const plateKind=s=>{const p=normPlate(s);return /^[A-Z]{3}\d[A-Z]\d{2}$/.test(p)?"Mercosul":/^[A-Z]{3}\d{4}$/.test(p)?"modelo antigo":""};
+
+/* Decodificação do chassi (VIN): fabricante pelo WMI e ano-modelo pela 10ª posição */
+const WMI={"9BW":"Volkswagen","8AW":"Volkswagen","9BG":"Chevrolet","8AG":"Chevrolet","9BD":"Fiat","8AP":"Fiat","9BF":"Ford","8AF":"Ford","93H":"Honda","9C2":"Honda","9C6":"Yamaha","93Y":"Renault","9BR":"Toyota","8AJ":"Toyota","9BH":"Hyundai","94D":"Nissan","9BM":"Mercedes-Benz","936":"Peugeot","935":"Citroën"};
+const VINY={A:2010,B:2011,C:2012,D:2013,E:2014,F:2015,G:2016,H:2017,J:2018,K:2019,L:2020,M:2021,N:2022,P:2023,R:2024,S:2025,T:2026,V:2027,W:2028,X:2029,Y:2030,1:2001,2:2002,3:2003,4:2004,5:2005,6:2006,7:2007,8:2008,9:2009};
+const decodeVin=v=>{v=String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"");if(v.length!==17)return null;return{marca:WMI[v.slice(0,3)]||"",ano:VINY[v[9]]||""}};
+
+const REC=["Mensalidade / aluguel","Caução","Multa repassada ao cliente","Venda de veículo","Outras receitas"];
+const DESP=["Manutenção","Seguro","IPVA / licenciamento","Multa","Rastreador","Financiamento / parcela","Combustível","Lavagem","Outras despesas"];
+const PAGTO=["Pix","Dinheiro","Cartão","Boleto","Transferência"];
+const CNH_CAT=["A","B","AB","C","D","E","AC","AD","AE","ACC"];
+const UFS="AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
+const MENS=REC[0];
+const FREQ={semanal:"semana",quinzenal:"quinzena",mensal:"mês"};
+
+/* ---------- estado ---------- */
+const COLS=["veiculos","clientes","locacoes","lancamentos"];
+const S={veiculos:[],clientes:[],locacoes:[],lancamentos:[]};
+let db=null, view="painel", mes=ymNow(), q={veiculos:"",clientes:""}, loaded=new Set(), dbState="loading", readOnly=false, filtroTipo="todos";
+try{const v=localStorage.getItem("loc_view");if(v)view=v}catch(e){}
+
+const byId=(col,id)=>S[col].find(x=>x.id===id);
+const veicLabel=v=>v?(v.placa||"s/ placa")+" · "+[v.marca,v.modelo].filter(Boolean).join(" "):"—";
+const locAtiva=vId=>S.locacoes.find(l=>l.veiculoId===vId&&l.status!=="encerrada");
+const veicStatus=v=>locAtiva(v.id)?"alugado":(v.status==="manutencao"?"manutencao":"disponivel");
+const STATUS_TXT={alugado:["Alugado","ok"],disponivel:["Disponível",""],manutencao:["Em manutenção","warn"]};
+
+function cnhInfo(c){
+  if(!c.cnhValidade)return null;
+  const d=days(todayIso(),c.cnhValidade);
+  if(d<0)return{txt:"CNH vencida há "+(-d)+" dia"+(d===-1?"":"s"),cls:"bad",d};
+  if(d<=30)return{txt:"CNH vence em "+d+" dia"+(d===1?"":"s"),cls:"warn",d};
+  return{txt:"CNH válida até "+fd(c.cnhValidade),cls:"ok",d};
+}
+function addPeriod(s,freq,n){const d=pd(s);if(freq==="mensal"){const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last))}else d.setDate(d.getDate()+n*(freq==="semanal"?7:15));return iso(d)}
+function locInfo(l){
+  const pagos=S.lancamentos.filter(t=>t.tipo==="receita"&&t.locacaoId===l.id&&t.categoria===MENS);
+  const total=pagos.reduce((a,t)=>a+(+t.valor||0),0);
+  const prox=l.inicio?addPeriod(l.inicio,l.frequencia||"mensal",pagos.length):null;
+  let st=null;
+  if(l.status!=="encerrada"&&prox){const d=days(todayIso(),prox);st=d<0?{txt:"Atrasado "+(-d)+" dia"+(d===-1?"":"s"),cls:"bad",d}:d<=2?{txt:d===0?"Vence hoje":"Vence em "+d+" dia"+(d===1?"":"s"),cls:"warn",d}:{txt:"Em dia",cls:"ok",d}}
+  return{pagos:pagos.length,total,prox,st};
+}
+const txOfMonth=ym=>S.lancamentos.filter(t=>ymOf(t.data)===ym);
+const sumT=(arr,tipo)=>arr.filter(t=>t.tipo===tipo).reduce((a,t)=>a+(+t.valor||0),0);
+
+/* ---------- ícones ---------- */
+const IC={
+  edit:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>',
+  inn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7 7 7-7"/></svg>',
+  out:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7-7 7 7"/></svg>',
+  wrench:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8V21h3.2l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.4-.4-.4-2.4z"/></svg>',
+  close:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  l:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
+  r:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
+};
+function plateHtml(v){const p=normPlate(v.placa)||"———";const moto=v.tipo==="moto";const txt=moto&&p.length===7?p.slice(0,3)+"<br>"+p.slice(3):esc(p);return '<div class="plate'+(moto?" moto":"")+'" aria-label="Placa '+esc(p)+'"><i>BRASIL</i><span>'+txt+'</span></div>'}
+const exChip=x=>x.exemplo?' <span class="chip ex">exemplo</span>':"";
+
+/* ---------- views ---------- */
+function vPainel(){
+  const tx=txOfMonth(mes), ent=sumT(tx,"receita"), sai=sumT(tx,"despesa"), bal=ent-sai;
+  const st={alugado:0,disponivel:0,manutencao:0};S.veiculos.forEach(v=>st[veicStatus(v)]++);
+  const alerts=[];
+  S.locacoes.filter(l=>l.status!=="encerrada").forEach(l=>{const i=locInfo(l);if(i.st&&i.st.cls!=="ok"){const c=byId("clientes",l.clienteId);alerts.push({cls:i.st.cls,html:'<b>'+esc(i.st.txt)+'</b> · '+esc(c?c.nome:"Cliente")+' — '+esc(veicLabel(byId("veiculos",l.veiculoId)))+'<div class="sub">Próximo pagamento: '+fd(i.prox)+' · '+brl(l.valor)+' por '+FREQ[l.frequencia||"mensal"]+'</div>',act:'<button class="btn sm" data-act="pagar" data-id="'+l.id+'">Registrar pagamento</button>'})}});
+  S.clientes.forEach(c=>{const i=cnhInfo(c);if(i&&i.cls!=="ok")alerts.push({cls:i.cls,html:'<b>'+esc(i.txt)+'</b> · '+esc(c.nome)+'<div class="sub">CNH '+esc(c.cnhNumero||"")+' categoria '+esc(c.cnhCategoria||"—")+'</div>',act:'<button class="btn sm" data-act="edit-cliente" data-id="'+c.id+'">Atualizar</button>'})});
+  S.veiculos.filter(v=>veicStatus(v)==="manutencao").forEach(v=>alerts.push({cls:"warn",html:'<b>Em manutenção</b> · '+esc(veicLabel(v)),act:'<button class="btn sm" data-act="edit-veiculo" data-id="'+v.id+'">Abrir</button>'}));
+
+  const months=[...Array(6)].map((_,i)=>ymShift(mes,i-5));
+  const data=months.map(m=>{const t=txOfMonth(m);return{m,e:sumT(t,"receita"),s:sumT(t,"despesa")}});
+  const mx=Math.max(1,...data.map(d=>Math.max(d.e,d.s)));
+  const recent=[...S.lancamentos].sort((a,b)=>(b.data||"").localeCompare(a.data||"")||(b.criadoEm||0)-(a.criadoEm||0)).slice(0,6);
+  const hasEx=COLS.some(c=>S[c].some(x=>x.exemplo));
+
+  return monthBar()+
+  (hasEx?'<div class="banner">Os registros marcados como <b>exemplo</b> mostram como o app funciona. <button class="btn sm" data-act="clear-ex" style="margin-left:6px">Apagar exemplos</button></div>':"")+
+  '<section class="sec"><div class="kpis">'+
+    '<div class="kpi in"><span class="eyebrow">Entradas</span><b class="num">'+brl(ent)+'</b></div>'+
+    '<div class="kpi out"><span class="eyebrow">Saídas</span><b class="num">'+brl(sai)+'</b></div>'+
+    '<div class="kpi bal"><span class="eyebrow">Saldo do mês</span><b class="num" style="color:var('+(bal>=0?"--in":"--out")+')">'+brl(bal)+'</b></div>'+
+  '</div>'+
+  '<div class="fleet"><span class="chip">'+S.veiculos.length+' veículo'+(S.veiculos.length===1?"":"s")+'</span><span class="chip ok"><span class="dot"></span>'+st.alugado+' alugado'+(st.alugado===1?"":"s")+'</span><span class="chip"><span class="dot"></span>'+st.disponivel+' disponíve'+(st.disponivel===1?"l":"is")+'</span>'+(st.manutencao?'<span class="chip warn"><span class="dot"></span>'+st.manutencao+' em manutenção</span>':"")+'</div></section>'+
+  '<section class="sec"><div class="sec-h"><h2>Precisa de atenção</h2><span class="muted">'+alerts.length+'</span></div>'+
+  (alerts.length?'<div class="list">'+alerts.map(a=>'<div class="alert '+a.cls+'"><div class="grow" style="flex:1;min-width:0">'+a.html+'</div>'+a.act+'</div>').join("")+'</div>':'<div class="empty">Nenhum pagamento atrasado, CNH vencendo ou veículo parado.</div>')+'</section>'+
+  '<section class="sec"><div class="sec-h"><h2>Últimos 6 meses</h2><div class="legend"><span><i style="background:var(--in)"></i>Entradas</span><span><i style="background:var(--out)"></i>Saídas</span></div></div>'+
+  '<div class="panel"><div class="chart">'+data.map(d=>'<div class="col" title="'+esc(ymLabel(d.m))+': entradas '+brl(d.e)+', saídas '+brl(d.s)+'"><div class="bars"><div class="b in" style="height:'+(d.e/mx*100)+'%"></div><div class="b out" style="height:'+(d.s/mx*100)+'%"></div></div><small>'+ymLabel(d.m,true)+'</small></div>').join("")+'</div><div style="height:10px"></div></div></section>'+
+  '<section class="sec"><div class="sec-h"><h2>Últimos lançamentos</h2><button class="btn sm" data-view-go="caixa">Ver caixa</button></div>'+
+  (recent.length?'<div class="panel">'+recent.map(txRow).join("")+'</div>':'<div class="empty">Os pagamentos e despesas que você lançar aparecem aqui.<button class="btn pri" data-act="new-receita">Lançar primeira receita</button></div>')+'</section>';
+}
+
+function monthBar(){return '<div class="sec"><div class="monthbar"><button class="icon-btn" data-act="mes-prev" aria-label="Mês anterior">'+IC.l+'</button><b>'+esc(ymLabel(mes))+'</b><button class="icon-btn" data-act="mes-next" aria-label="Próximo mês">'+IC.r+'</button></div></div>'}
+
+function txRow(t){
+  const v=byId("veiculos",t.veiculoId), c=byId("clientes",t.clienteId), isIn=t.tipo==="receita";
+  const det=[fd(t.data),v?v.placa:"",c?c.nome.split(" ")[0]:"",t.formaPagamento].filter(Boolean).join(" · ");
+  const extra=t.categoria==="Manutenção"&&(t.pecas||t.maoDeObra)?'<div class="sub">Peças '+brl(t.pecas)+' · Mão de obra '+brl(t.maoDeObra)+'</div>':"";
+  return '<div class="tx"><div class="tx-ic '+(isIn?"in":"out")+'">'+(t.categoria==="Manutenção"?IC.wrench:isIn?IC.inn:IC.out)+'</div><div style="min-width:0"><div class="t ellip">'+esc(t.descricao||t.categoria)+exChip(t)+'</div><div class="sub ellip">'+esc(t.descricao?t.categoria+" · "+det:det)+'</div>'+extra+'</div><div style="display:flex;align-items:center;gap:2px"><span class="money '+(isIn?"in":"out")+'">'+(isIn?"+ ":"− ")+brl(t.valor)+'</span><button class="icon-btn" data-act="edit-lanc" data-id="'+t.id+'" aria-label="Editar lançamento">'+IC.edit+'</button></div></div>';
+}
+
+function vVeiculos(){
+  return '<section class="sec"><div class="sec-h"><h2>Veículos</h2><button class="btn pri" data-act="new-veiculo">+ Cadastrar veículo</button></div>'+
+  (S.veiculos.length?'<input class="search" id="q-veiculos" type="search" placeholder="Buscar por placa, modelo ou cor" value="'+esc(q.veiculos)+'"><div class="list" id="list">'+listVeiculos()+'</div>':'<div class="empty"><b>Nenhum veículo cadastrado</b>Cadastre carros e motos com placa, chassi, motor e cor.<button class="btn pri" data-act="new-veiculo">Cadastrar primeiro veículo</button></div>')+'</section>';
+}
+function listVeiculos(){
+  const s=q.veiculos.toLowerCase();
+  const arr=S.veiculos.filter(v=>!s||[v.placa,v.marca,v.modelo,v.cor].join(" ").toLowerCase().includes(s)).sort((a,b)=>(a.placa||"").localeCompare(b.placa||""));
+  if(!arr.length)return '<div class="empty">Nenhum veículo encontrado para “'+esc(q.veiculos)+'”.</div>';
+  return arr.map(v=>{
+    const st=STATUS_TXT[veicStatus(v)], l=locAtiva(v.id), c=l&&byId("clientes",l.clienteId);
+    const tx=S.lancamentos.filter(t=>t.veiculoId===v.id), rec=sumT(tx,"receita"), desp=sumT(tx,"despesa");
+    return '<article class="card"><div class="row">'+plateHtml(v)+'<div class="grow"><div class="t ellip">'+esc([v.marca,v.modelo].filter(Boolean).join(" ")||"Sem modelo")+exChip(v)+'</div><div class="sub ellip">'+esc([v.tipo==="moto"?"Moto":"Carro",[v.anoFabricacao,v.anoModelo].filter(Boolean).join("/"),v.cor].filter(Boolean).join(" · "))+'</div></div><span class="chip '+st[1]+'"><span class="dot"></span>'+st[0]+'</span></div>'+
+    (c?'<div class="sub">Com <b style="color:var(--fg)">'+esc(c.nome)+'</b> desde '+fd(l.inicio)+'</div>':"")+
+    '<div class="sub num">Recebido '+brl(rec)+' · Gasto '+brl(desp)+' · <b style="color:var('+(rec-desp>=0?"--in":"--out")+')">Resultado '+brl(rec-desp)+'</b></div>'+
+    '<div class="actions"><button class="btn sm" data-act="edit-veiculo" data-id="'+v.id+'">'+IC.edit+'Editar</button><button class="btn sm" data-act="manut" data-id="'+v.id+'">'+IC.wrench+'Lançar manutenção</button></div></article>';
+  }).join("");
+}
+
+function vClientes(){
+  return '<section class="sec"><div class="sec-h"><h2>Clientes e motoristas</h2><button class="btn pri" data-act="new-cliente">+ Cadastrar cliente</button></div>'+
+  (S.clientes.length?'<input class="search" id="q-clientes" type="search" placeholder="Buscar por nome, CPF ou telefone" value="'+esc(q.clientes)+'"><div class="list" id="list">'+listClientes()+'</div>':'<div class="empty"><b>Nenhum cliente cadastrado</b>Cadastre quem aluga seus veículos, com documentos, endereço e CNH.<button class="btn pri" data-act="new-cliente">Cadastrar primeiro cliente</button></div>')+'</section>';
+}
+function listClientes(){
+  const s=q.clientes.toLowerCase(), sd=digits(q.clientes);
+  const arr=S.clientes.filter(c=>!s||(c.nome||"").toLowerCase().includes(s)||(sd&&(digits(c.cpf).includes(sd)||digits(c.telefone).includes(sd)))).sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));
+  if(!arr.length)return '<div class="empty">Nenhum cliente encontrado para “'+esc(q.clientes)+'”.</div>';
+  return arr.map(c=>{
+    const i=cnhInfo(c), l=S.locacoes.find(x=>x.clienteId===c.id&&x.status!=="encerrada"), v=l&&byId("veiculos",l.veiculoId);
+    return '<article class="card"><div class="row"><div class="grow"><div class="t ellip">'+esc(c.nome)+exChip(c)+'</div><div class="sub ellip">'+esc([c.cpf?"CPF "+fmtCpf(c.cpf):"",c.telefone].filter(Boolean).join(" · ")||"Sem documento informado")+'</div></div>'+(i?'<span class="chip '+i.cls+'">'+esc(i.cls==="ok"?"CNH "+(c.cnhCategoria||"")+" válida":i.txt)+'</span>':'<span class="chip">Sem CNH</span>')+'</div>'+
+    (v?'<div class="sub">Está com '+esc(veicLabel(v))+'</div>':"")+
+    '<div class="sub">'+esc([c.cidade,c.uf].filter(Boolean).join(" / "))+(c.cnhNumero?" · CNH "+esc(c.cnhNumero)+" ("+esc(c.cnhCategoria||"—")+") até "+fd(c.cnhValidade):"")+'</div>'+
+    '<div class="actions"><button class="btn sm" data-act="edit-cliente" data-id="'+c.id+'">'+IC.edit+'Ver / editar</button></div></article>';
+  }).join("");
+}
+
+function vLocacoes(){
+  const at=S.locacoes.filter(l=>l.status!=="encerrada"), enc=S.locacoes.filter(l=>l.status==="encerrada");
+  const card=l=>{const c=byId("clientes",l.clienteId), v=byId("veiculos",l.veiculoId), i=locInfo(l);
+    return '<article class="card"><div class="row">'+(v?plateHtml(v):"")+'<div class="grow"><div class="t ellip">'+esc(c?c.nome:"Cliente removido")+exChip(l)+'</div><div class="sub ellip">'+esc(v?[v.marca,v.modelo].filter(Boolean).join(" "):"Veículo removido")+'</div></div>'+(i.st?'<span class="chip '+i.st.cls+'">'+esc(i.st.txt)+'</span>':'<span class="chip">Encerrada</span>')+'</div>'+
+    '<div class="sub num"><b style="color:var(--fg)">'+brl(l.valor)+'</b> por '+FREQ[l.frequencia||"mensal"]+' · desde '+fd(l.inicio)+(l.status==="encerrada"&&l.fim?" até "+fd(l.fim):"")+(l.caucao?" · caução "+brl(l.caucao):"")+'</div>'+
+    '<div class="sub num">'+i.pagos+' pagamento'+(i.pagos===1?"":"s")+' · total '+brl(i.total)+(l.status!=="encerrada"?' · próximo em <b style="color:var(--fg)">'+fd(i.prox)+'</b>':"")+'</div>'+
+    '<div class="actions">'+(l.status!=="encerrada"?'<button class="btn sm pri" data-act="pagar" data-id="'+l.id+'">Registrar pagamento</button>':"")+'<button class="btn sm" data-act="edit-locacao" data-id="'+l.id+'">'+IC.edit+'Editar</button></div></article>'};
+  const canNew=S.veiculos.length&&S.clientes.length;
+  return '<section class="sec"><div class="sec-h"><h2>Locações ativas</h2><button class="btn pri" data-act="new-locacao">+ Nova locação</button></div>'+
+  (at.length?'<div class="list">'+at.map(card).join("")+'</div>':'<div class="empty"><b>Nenhuma locação ativa</b>'+(canNew?'Ligue um cliente a um veículo, com valor e frequência de pagamento, para acompanhar quem está em dia.<button class="btn pri" data-act="new-locacao">Criar locação</button>':'Primeiro cadastre pelo menos um veículo e um cliente.')+'</div>')+'</section>'+
+  (enc.length?'<section class="sec"><div class="sec-h"><h2>Encerradas</h2></div><div class="list">'+enc.map(card).join("")+'</div></section>':"");
+}
+
+function vCaixa(){
+  let tx=txOfMonth(mes);
+  const ent=sumT(tx,"receita"), sai=sumT(tx,"despesa");
+  const man=tx.filter(t=>t.categoria==="Manutenção"), pecas=man.reduce((a,t)=>a+(+t.pecas||0),0), mao=man.reduce((a,t)=>a+(+t.maoDeObra||0),0);
+  const cats={};tx.filter(t=>t.tipo==="despesa").forEach(t=>cats[t.categoria]=(cats[t.categoria]||0)+(+t.valor||0));
+  const porV=S.veiculos.map(v=>{const t=tx.filter(x=>x.veiculoId===v.id);return{v,e:sumT(t,"receita"),s:sumT(t,"despesa")}}).filter(r=>r.e||r.s).sort((a,b)=>(b.e-b.s)-(a.e-a.s));
+  const list=tx.filter(t=>filtroTipo==="todos"||t.tipo===filtroTipo).sort((a,b)=>(b.data||"").localeCompare(a.data||"")||(b.criadoEm||0)-(a.criadoEm||0));
+  return monthBar()+
+  '<section class="sec"><div class="kpis"><div class="kpi in"><span class="eyebrow">Entradas</span><b class="num">'+brl(ent)+'</b></div><div class="kpi out"><span class="eyebrow">Saídas</span><b class="num">'+brl(sai)+'</b></div><div class="kpi bal"><span class="eyebrow">Saldo</span><b class="num" style="color:var('+(ent-sai>=0?"--in":"--out")+')">'+brl(ent-sai)+'</b></div></div>'+
+  '<div class="actions"><button class="btn pri" data-act="new-receita">'+IC.inn.replace("<svg",'<svg width="16" height="16"')+'Nova receita</button><button class="btn" data-act="new-despesa">'+IC.out.replace("<svg",'<svg width="16" height="16"')+'Nova despesa</button><button class="btn" data-act="manut">'+IC.wrench.replace("<svg",'<svg width="16" height="16"')+'Manutenção</button></div></section>'+
+  '<section class="sec"><div class="sec-h"><h2>Lançamentos</h2><div class="seg" role="group" aria-label="Filtrar">'+[["todos","Todos"],["receita","Entradas"],["despesa","Saídas"]].map(([k,t])=>'<label><input type="radio" name="ft" value="'+k+'" data-act="filtro"'+(filtroTipo===k?" checked":"")+'><span>'+t+'</span></label>').join("")+'</div></div>'+
+  (list.length?'<div class="panel">'+list.map(txRow).join("")+'</div>':'<div class="empty">Nenhum lançamento em '+esc(ymLabel(mes))+'.</div>')+'</section>'+
+  (sai?'<section class="sec"><div class="sec-h"><h2>Para onde foi o dinheiro</h2></div><div class="panel tbl-wrap"><table><tbody>'+Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td class="r num">'+brl(v)+'</td><td class="r num muted">'+Math.round(v/sai*100)+'%</td></tr>'+(k==="Manutenção"?'<tr><td class="muted">&nbsp;&nbsp;↳ Peças</td><td class="r num muted">'+brl(pecas)+'</td><td></td></tr><tr><td class="muted">&nbsp;&nbsp;↳ Mão de obra</td><td class="r num muted">'+brl(mao)+'</td><td></td></tr>':"")).join("")+'</tbody></table></div></section>':"")+
+  (porV.length?'<section class="sec"><div class="sec-h"><h2>Resultado por veículo</h2></div><div class="panel tbl-wrap"><table><thead><tr><th>Veículo</th><th class="r">Entradas</th><th class="r">Saídas</th><th class="r">Resultado</th></tr></thead><tbody>'+porV.map(r=>'<tr><td>'+esc(veicLabel(r.v))+'</td><td class="r num money in">'+brl(r.e)+'</td><td class="r num money out">'+brl(r.s)+'</td><td class="r num"><b style="color:var('+(r.e-r.s>=0?"--in":"--out")+')">'+brl(r.e-r.s)+'</b></td></tr>').join("")+'</tbody></table></div></section>':"");
+}
+
+const VIEWS={painel:vPainel,veiculos:vVeiculos,clientes:vClientes,locacoes:vLocacoes,caixa:vCaixa};
+
+function render(){
+  if(!VIEWS[view])view="painel";
+  let pre="";
+  if(dbState==="none")pre='<div class="banner"><b>Os dados não estão sendo salvos.</b> Abra este app pelo claude.ai com a sua conta para cadastrar e guardar veículos, clientes e lançamentos.</div>';
+  else if(dbState==="slow")pre='<div class="banner">Não consegui falar com o banco de dados ainda. Verifique sua conexão; os dados aparecem assim que ele responder.</div>';
+  else if(dbState==="error")pre='<div class="banner">A conexão com o banco de dados caiu. Recarregue a página para continuar.</div>';
+  if(readOnly)pre+='<div class="banner">Você tem acesso só para visualizar. Peça ao dono do app acesso de editor para lançar dados.</div>';
+  $("#main").innerHTML=pre+VIEWS[view]();
+  document.querySelectorAll("#nav button").forEach(b=>{if(b.dataset.view===view)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
+  $("#sync").textContent=dbState==="ok"?"Dados salvos na nuvem":dbState==="none"?"Modo de visualização":"Conectando…";
+}
+function go(v){view=v;try{localStorage.setItem("loc_view",v)}catch(e){}render();window.scrollTo(0,0)}
+
+/* ---------- formulários ---------- */
+function F(label,name,val,type,extra){type=type||"text";extra=extra||"";
+  if(type==="textarea")return '<label class="f'+(extra.includes("full")?" full":"")+'">'+label+'<textarea id="f-'+name+'" name="'+name+'">'+esc(val)+'</textarea></label>';
+  return '<label class="f'+(extra.includes("full")?" full":"")+'">'+label+'<input id="f-'+name+'" name="'+name+'" type="'+type+'" value="'+esc(val??"")+'" '+extra.replace("full","")+'></label>'}
+function Sel(label,name,val,opts,extra){extra=extra||"";return '<label class="f'+(extra.includes("full")?" full":"")+'">'+label+'<select id="f-'+name+'" name="'+name+'">'+opts.map(o=>{const[v,t]=Array.isArray(o)?o:[o,o];return '<option value="'+esc(v)+'"'+(String(v)===String(val??"")?" selected":"")+'>'+esc(t)+'</option>'}).join("")+'</select></label>'}
+function Seg(name,val,opts){return '<div class="seg full" role="radiogroup">'+opts.map(([v,t])=>'<label><input type="radio" name="'+name+'" value="'+v+'"'+(val===v?" checked":"")+'><span>'+t+'</span></label>').join("")+'</div>'}
+
+let sheet=null;
+function openSheet(title,body,{kind,id,col}){
+  sheet={kind,id,col,confirmDel:false};
+  $("#sheet-root").innerHTML='<div class="sheet-bg" data-act="close-bg"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><div class="sheet-h"><h2 id="sheet-title">'+esc(title)+'</h2><button class="icon-btn" data-act="close" aria-label="Fechar">'+IC.close+'</button></div><form id="frm" novalidate>'+body+
+  '<div class="form-foot">'+(id?'<button type="button" class="btn danger" data-act="del">Excluir</button>':"")+'<div class="r"><button type="button" class="btn" data-act="close">Cancelar</button><button type="submit" class="btn pri"'+(readOnly||dbState==="none"?" disabled":"")+'>Salvar</button></div></div></form></div></div>';
+  document.body.style.overflow="hidden";
+  const first=$("#frm input:not([type=radio]),#frm select");if(first&&window.innerWidth>700)first.focus();
+  wireLive();
+}
+function closeSheet(){$("#sheet-root").innerHTML="";sheet=null;document.body.style.overflow=""}
+
+function formVeiculo(v){v=v||{tipo:"carro",status:"disponivel"};
+  openSheet(v.id?"Editar veículo":"Cadastrar veículo",
+  '<fieldset>'+Seg("tipo",v.tipo||"carro",[["carro","Carro"],["moto","Moto"]])+
+  '<div class="grid">'+F("Placa","placa",v.placa,"text",'autocapitalize="characters" maxlength="8" placeholder="ABC1D23" required')+Sel("Situação","status",v.status||"disponivel",[["disponivel","Disponível"],["manutencao","Em manutenção"]])+
+  '<div class="hint full" id="h-placa"></div>'+
+  '<div class="note full">A consulta automática pela placa precisa de um serviço pago de dados veiculares, que ainda não está ligado. Preencha os dados do documento (CRLV); ao digitar o chassi, o app já reconhece a marca e o ano-modelo.</div></div></fieldset>'+
+  '<fieldset><legend>Dados do veículo</legend><div class="grid">'+F("Marca","marca",v.marca,"text",'placeholder="Honda"')+F("Modelo","modelo",v.modelo,"text",'placeholder="CG 160 Fan"')+
+  F("Ano fabricação","anoFabricacao",v.anoFabricacao,"number",'inputmode="numeric" min="1950" max="2035"')+F("Ano modelo","anoModelo",v.anoModelo,"number",'inputmode="numeric" min="1950" max="2035"')+
+  F("Cor","cor",v.cor,"text",'placeholder="Prata"')+F("Quilometragem","km",v.km,"number",'inputmode="numeric" min="0"')+
+  F("Chassi","chassi",v.chassi,"text",'autocapitalize="characters" maxlength="17" class="full"')+'<div class="hint full" id="h-chassi"></div>'+
+  F("Número do motor","motor",v.motor,"text",'autocapitalize="characters"')+F("Renavam","renavam",v.renavam,"text",'inputmode="numeric" maxlength="11"')+
+  F("Observações","obs",v.obs,"textarea","full")+'</div></fieldset>',{kind:"veiculo",id:v.id,col:"veiculos"});
+}
+function formCliente(c){c=c||{};
+  openSheet(c.id?"Cliente / motorista":"Cadastrar cliente",
+  '<fieldset><legend>Dados pessoais</legend><div class="grid">'+F("Nome completo","nome",c.nome,"text",'autocomplete="off" class="full" required')+
+  F("CPF","cpf",c.cpf?fmtCpf(c.cpf):"","text",'inputmode="numeric" maxlength="14" placeholder="000.000.000-00"')+F("Data de nascimento","nascimento",c.nascimento,"date")+'<div class="hint full" id="h-cpf"></div>'+
+  F("RG","rg",c.rg,"text")+F("Órgão emissor / UF","rgOrgao",c.rgOrgao,"text",'placeholder="SSP/SP"')+
+  F("Telefone / WhatsApp","telefone",c.telefone,"tel",'placeholder="(11) 90000-0000"')+F("E-mail","email",c.email,"email")+'</div></fieldset>'+
+  '<fieldset><legend>Endereço</legend><div class="grid g3">'+F("CEP","cep",c.cep,"text",'inputmode="numeric" maxlength="9"')+F("Rua / avenida","logradouro",c.logradouro,"text",'class="full"')+F("Número","numero",c.numero,"text")+F("Complemento","complemento",c.complemento,"text")+F("Bairro","bairro",c.bairro,"text")+F("Cidade","cidade",c.cidade,"text")+Sel("UF","uf",c.uf||"",[["","—"],...UFS])+'</div></fieldset>'+
+  '<fieldset><legend>Carteira de motorista (CNH)</legend><div class="grid">'+F("Nº de registro da CNH","cnhNumero",c.cnhNumero,"text",'inputmode="numeric" maxlength="11"')+Sel("Categoria","cnhCategoria",c.cnhCategoria||"",[["","—"],...CNH_CAT])+
+  F("Validade","cnhValidade",c.cnhValidade,"date")+F("1ª habilitação","cnhPrimeira",c.cnhPrimeira,"date")+'<div class="hint full" id="h-cnh"></div>'+
+  '<label class="f full" style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input type="checkbox" name="ear" id="f-ear" style="width:auto"'+(c.ear?" checked":"")+'> Tem EAR (exerce atividade remunerada) na CNH</label>'+
+  F("Observações","obs",c.obs,"textarea","full")+'</div></fieldset>',{kind:"cliente",id:c.id,col:"clientes"});
+}
+function formLocacao(l){l=l||{frequencia:"semanal",inicio:todayIso(),status:"ativa"};
+  const vs=S.veiculos.filter(v=>v.id===l.veiculoId||!locAtiva(v.id));
+  openSheet(l.id?"Editar locação":"Nova locação",
+  '<fieldset><div class="grid">'+Sel("Cliente","clienteId",l.clienteId,[["","Escolha o cliente"],...S.clientes.map(c=>[c.id,c.nome])],"full")+
+  Sel("Veículo","veiculoId",l.veiculoId,[["",vs.length?"Escolha o veículo":"Nenhum veículo disponível"],...vs.map(v=>[v.id,veicLabel(v)])],"full")+
+  F("Valor (R$)","valor",l.valor,"number",'inputmode="decimal" step="0.01" min="0"')+Sel("Cobrança","frequencia",l.frequencia,[["semanal","Semanal"],["quinzenal","Quinzenal"],["mensal","Mensal"]])+
+  F("Data de início","inicio",l.inicio,"date")+F("Caução (R$)","caucao",l.caucao,"number",'inputmode="decimal" step="0.01" min="0"')+
+  Sel("Situação","status",l.status||"ativa",[["ativa","Ativa"],["encerrada","Encerrada"]])+F("Data de devolução","fim",l.fim,"date")+
+  F("Km na retirada","kmInicio",l.kmInicio,"number",'inputmode="numeric" min="0"')+F("Km na devolução","kmFim",l.kmFim,"number",'inputmode="numeric" min="0"')+
+  '<div class="note full">Cada pagamento lançado como “Mensalidade / aluguel” desta locação cobre uma '+'semana, quinzena ou mês, a partir da data de início. É assim que o app sabe quem está em dia.</div>'+
+  F("Observações","obs",l.obs,"textarea","full")+'</div></fieldset>',{kind:"locacao",id:l.id,col:"locacoes"});
+}
+function formLanc(t){
+  const isIn=t.tipo==="receita";
+  const locOpts=[["","Nenhuma"],...S.locacoes.filter(l=>l.status!=="encerrada"||l.id===t.locacaoId).map(l=>{const c=byId("clientes",l.clienteId),v=byId("veiculos",l.veiculoId);return[l.id,(c?c.nome:"?")+" — "+(v?v.placa:"?")]})];
+  openSheet(t.id?"Editar lançamento":isIn?"Nova receita":t.categoria==="Manutenção"?"Lançar manutenção":"Nova despesa",
+  '<fieldset>'+Seg("tipo",t.tipo,[["receita","Entrada"],["despesa","Saída"]])+'<div class="grid">'+
+  Sel("Categoria","categoria",t.categoria,(isIn?REC:DESP),"full")+
+  '<div class="full grid" id="manut-box"'+(t.categoria==="Manutenção"?"":" hidden")+'>'+F("Peças (R$)","pecas",t.pecas,"number",'inputmode="decimal" step="0.01" min="0"')+F("Mão de obra (R$)","maoDeObra",t.maoDeObra,"number",'inputmode="decimal" step="0.01" min="0"')+F("Oficina / fornecedor","oficina",t.oficina,"text")+F("Km no serviço","km",t.km,"number",'inputmode="numeric" min="0"')+'</div>'+
+  F("Valor total (R$)","valor",t.valor,"number",'inputmode="decimal" step="0.01" min="0" required')+F("Data","data",t.data||todayIso(),"date")+
+  Sel("Veículo","veiculoId",t.veiculoId,[["","Nenhum / geral"],...S.veiculos.map(v=>[v.id,veicLabel(v)])],"full")+
+  '<div class="full grid" id="rec-box"'+(isIn?"":" hidden")+'>'+Sel("Locação (cliente)","locacaoId",t.locacaoId,locOpts,"full")+'</div>'+
+  Sel("Forma de pagamento","formaPagamento",t.formaPagamento||"Pix",PAGTO)+F("Descrição","descricao",t.descricao,"text",'placeholder="'+(isIn?"Semana 12/11":"Troca de óleo e pastilhas")+'"')+
+  '</div></fieldset>',{kind:"lanc",id:t.id,col:"lancamentos"});
+}
+
+/* validação ao vivo dentro da folha */
+function wireLive(){
+  const f=$("#frm");if(!f)return;
+  const upd=()=>{
+    const p=$("#f-placa");if(p){const h=$("#h-placa"),v=normPlate(p.value);h.className="hint full "+(v?plateOk(v)?"ok":"bad":"");h.textContent=v?plateOk(v)?"Placa "+plateKind(v)+" válida":"Formato esperado: ABC1D23 (Mercosul) ou ABC1234":""}
+    const ch=$("#f-chassi");if(ch){const h=$("#h-chassi"),v=ch.value.replace(/\s/g,"");if(!v){h.textContent="";h.className="hint full"}else if(v.length!==17){h.className="hint full bad";h.textContent="O chassi tem 17 caracteres ("+v.length+" digitados)"}else{const d=decodeVin(v);h.className="hint full ok";h.textContent="Chassi reconhecido"+(d.marca?" · fabricante "+d.marca:"")+(d.ano?" · ano-modelo "+d.ano:"");}}
+    const cpf=$("#f-cpf");if(cpf){const h=$("#h-cpf"),d=digits(cpf.value);h.className="hint full "+(d?cpfOk(d)?"ok":"bad":"");h.textContent=d?cpfOk(d)?"CPF válido":d.length<11?"CPF incompleto":"CPF inválido: confira os números":""}
+    const val=$("#f-cnhValidade");if(val){const h=$("#h-cnh"),i=val.value?cnhInfo({cnhValidade:val.value}):null;h.className="hint full "+(i?i.cls==="ok"?"ok":"bad":"");h.textContent=i?i.txt:""}
+  };
+  upd();
+  f.addEventListener("input",e=>{
+    const n=e.target.name;
+    if(n==="cpf"){const d=digits(e.target.value).slice(0,11);e.target.value=d.replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2")}
+    if(n==="cep"){const d=digits(e.target.value).slice(0,8);e.target.value=d.length>5?d.slice(0,5)+"-"+d.slice(5):d}
+    if(n==="placa"){e.target.value=normPlate(e.target.value).slice(0,7)}
+    if(n==="chassi"){e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,17);const d=decodeVin(e.target.value);if(d){const m=$("#f-marca"),a=$("#f-anoModelo");if(m&&!m.value&&d.marca)m.value=d.marca;if(a&&!a.value&&d.ano)a.value=d.ano}}
+    if(n==="pecas"||n==="maoDeObra"){const t=(+$("#f-pecas").value||0)+(+$("#f-maoDeObra").value||0);$("#f-valor").value=t?t.toFixed(2):""}
+    upd();
+  });
+  f.addEventListener("change",e=>{
+    const n=e.target.name;
+    if(n==="tipo"&&sheet&&sheet.kind==="lanc"){const tipo=e.target.value,sel=$("#f-categoria");sel.innerHTML=(tipo==="receita"?REC:DESP).map(c=>'<option>'+esc(c)+'</option>').join("");$("#rec-box").hidden=tipo!=="receita";$("#manut-box").hidden=sel.value!=="Manutenção"}
+    if(n==="categoria"){$("#manut-box").hidden=e.target.value!=="Manutenção"}
+    if(n==="locacaoId"&&e.target.value){const l=byId("locacoes",e.target.value);if(l){$("#f-veiculoId").value=l.veiculoId||"";const v=$("#f-valor");if(!v.value)v.value=l.valor||""}}
+  });
+}
+
+function collect(){
+  const f=$("#frm"), o={};
+  new FormData(f).forEach((v,k)=>{o[k]=typeof v==="string"?v.trim():v});
+  f.querySelectorAll("input[type=checkbox]").forEach(c=>o[c.name]=c.checked);
+  f.querySelectorAll("input[type=number]").forEach(i=>{o[i.name]=i.value===""?null:+i.value});
+  return o;
+}
+function validate(kind,o){
+  if(kind==="veiculo"){o.placa=normPlate(o.placa);o.chassi=(o.chassi||"").toUpperCase();o.motor=(o.motor||"").toUpperCase();if(!o.placa)return"Informe a placa do veículo.";if(!plateOk(o.placa))return"A placa precisa estar no formato ABC1D23 ou ABC1234.";if(S.veiculos.some(v=>v.placa===o.placa&&v.id!==sheet.id))return"Já existe um veículo com a placa "+o.placa+".";}
+  if(kind==="cliente"){if(!o.nome)return"Informe o nome completo.";o.cpf=digits(o.cpf);if(o.cpf&&!cpfOk(o.cpf))return"O CPF informado é inválido. Confira os números.";if(o.cpf&&S.clientes.some(c=>c.cpf===o.cpf&&c.id!==sheet.id))return"Já existe um cliente com esse CPF.";}
+  if(kind==="locacao"){if(!o.clienteId)return"Escolha o cliente.";if(!o.veiculoId)return"Escolha o veículo.";if(!o.valor)return"Informe o valor da locação.";if(!o.inicio)return"Informe a data de início.";if(o.status==="encerrada"&&!o.fim)o.fim=todayIso();}
+  if(kind==="lanc"){if(!o.valor||o.valor<=0)return"Informe um valor maior que zero.";if(!o.data)return"Informe a data.";if(o.tipo!=="receita")o.locacaoId="";if(o.categoria!=="Manutenção"){delete o.pecas;delete o.maoDeObra;delete o.oficina;delete o.km}
+    if(o.locacaoId&&!o.clienteId){const l=byId("locacoes",o.locacaoId);if(l)o.clienteId=l.clienteId}if(!o.locacaoId)o.clienteId="";}
+  return null;
+}
+
+async function save(){
+  if(!sheet||!db)return toast("Os dados só podem ser salvos com o app aberto pelo claude.ai.");
+  const o=collect(), err=validate(sheet.kind,o);
+  if(err)return toast(err);
+  const col=sheet.col, prev=sheet.id?byId(col,sheet.id):null;
+  const data=Object.assign({},prev||{},o,{atualizadoEm:Date.now()});
+  delete data.id; if(!prev)data.criadoEm=Date.now(); delete data.exemplo; if(prev&&prev.exemplo)data.exemplo=true;
+  const btn=$("#frm button[type=submit]");btn.disabled=true;
+  try{
+    if(sheet.id)await db.collection(col).doc(sheet.id).set(data);else await db.collection(col).add(data);
+    if(sheet.kind==="locacao"&&!prev&&o.caucao>0)await db.collection("lancamentos").add({tipo:"receita",categoria:"Caução",valor:o.caucao,data:o.inicio,veiculoId:o.veiculoId,locacaoId:"",clienteId:o.clienteId,formaPagamento:"Pix",descricao:"Caução da locação",criadoEm:Date.now()});
+    const msg={veiculo:"Veículo salvo",cliente:"Cliente salvo",locacao:"Locação salva",lanc:"Lançamento salvo"}[sheet.kind];
+    closeSheet();toast(msg);
+  }catch(e){btn.disabled=false;dbErr(e)}
+}
+async function del(){
+  if(!sheet||!db)return;
+  const btn=document.querySelector('[data-act="del"]');
+  if(!sheet.confirmDel){
+    const deps=sheet.kind==="veiculo"?S.locacoes.filter(l=>l.veiculoId===sheet.id&&l.status!=="encerrada").length:sheet.kind==="cliente"?S.locacoes.filter(l=>l.clienteId===sheet.id&&l.status!=="encerrada").length:0;
+    if(deps)return toast("Encerre a locação ativa antes de excluir.");
+    sheet.confirmDel=true;btn.textContent="Toque de novo para excluir";btn.classList.add("pri");btn.style.background="var(--out)";btn.style.borderColor="var(--out)";btn.style.color="#fff";return;
+  }
+  try{await db.collection(sheet.col).doc(sheet.id).delete();closeSheet();toast("Excluído")}catch(e){dbErr(e)}
+}
+async function clearExamples(){
+  if(!db)return;
+  const items=COLS.flatMap(c=>S[c].filter(x=>x.exemplo).map(x=>[c,x.id]));
+  try{for(const [c,id] of items)await db.collection(c).doc(id).delete();toast("Exemplos apagados")}catch(e){dbErr(e)}
+}
+function dbErr(e){const c=e&&e.code;if(c==="invalid_argument"&&!readOnly){readOnly=true;render();toast("Você não tem permissão para salvar neste app.")}else if(c==="quota_exceeded")toast("O espaço do app está cheio. Exclua registros antigos para continuar.");else toast("Não foi possível salvar agora. Tente de novo em instantes.")}
+
+let toastT;function toast(m){$("#toast-root").innerHTML='<div class="toast" role="status">'+esc(m)+'</div>';clearTimeout(toastT);toastT=setTimeout(()=>$("#toast-root").innerHTML="",2800)}
+
+/* ---------- eventos ---------- */
+document.addEventListener("click",e=>{
+  const nb=e.target.closest("[data-view]");if(nb&&nb.closest("#nav"))return go(nb.dataset.view);
+  const vg=e.target.closest("[data-view-go]");if(vg)return go(vg.dataset.viewGo);
+  const a=e.target.closest("[data-act]");if(!a)return;
+  const act=a.dataset.act, id=a.dataset.id;
+  if(act==="close-bg"&&e.target!==a)return;
+  switch(act){
+    case "close":case "close-bg":return closeSheet();
+    case "del":return del();
+    case "mes-prev":mes=ymShift(mes,-1);return render();
+    case "mes-next":mes=ymShift(mes,1);return render();
+    case "new-veiculo":return formVeiculo();
+    case "edit-veiculo":return formVeiculo(byId("veiculos",id));
+    case "new-cliente":return formCliente();
+    case "edit-cliente":return formCliente(byId("clientes",id));
+    case "new-locacao":if(!S.veiculos.length||!S.clientes.length)return toast("Cadastre um veículo e um cliente primeiro.");return formLocacao();
+    case "edit-locacao":return formLocacao(byId("locacoes",id));
+    case "new-receita":return formLanc({tipo:"receita",categoria:MENS});
+    case "new-despesa":return formLanc({tipo:"despesa",categoria:DESP[1]});
+    case "manut":return formLanc({tipo:"despesa",categoria:"Manutenção",veiculoId:id||""});
+    case "quick":return formLanc({tipo:"receita",categoria:MENS});
+    case "edit-lanc":return formLanc(byId("lancamentos",id));
+    case "pagar":{const l=byId("locacoes",id);if(!l)return;const i=locInfo(l);return formLanc({tipo:"receita",categoria:MENS,locacaoId:l.id,veiculoId:l.veiculoId,valor:l.valor,data:todayIso(),descricao:"Pagamento referente a "+fd(i.prox)})}
+    case "clear-ex":return clearExamples();
+  }
+});
+document.addEventListener("change",e=>{if(e.target.dataset.act==="filtro"){filtroTipo=e.target.value;render()}});
+document.addEventListener("submit",e=>{e.preventDefault();save()});
+document.addEventListener("input",e=>{
+  if(e.target.id==="q-veiculos"){q.veiculos=e.target.value;$("#list").innerHTML=listVeiculos()}
+  if(e.target.id==="q-clientes"){q.clientes=e.target.value;$("#list").innerHTML=listClientes()}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&sheet)closeSheet()});
+
+/* ---------- banco de dados ---------- */
+render();
+const use=window.claude&&window.claude.use;
+if(!use){dbState="none";render()}
+else window.claude.use("db").then(d=>{
+  if(!d){dbState="none";render();return}
+  db=d;
+  const timer=setTimeout(()=>{if(dbState==="loading"){dbState="slow";render()}},10000);
+  COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{
+    S[c]=snap.docs.map(x=>Object.assign({id:x.id},x.data()));
+    if(!snap.metadata.fromCache)loaded.add(c);
+    if(loaded.size===COLS.length&&dbState!=="ok"){dbState="ok";clearTimeout(timer)}
+    render();
+  },err=>{clearTimeout(timer);dbState="error";render()}));
+}).catch(()=>{dbState="none";render()});
+})();
+</script>
