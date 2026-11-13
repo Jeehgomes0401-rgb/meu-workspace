@@ -50,12 +50,12 @@ button,input,select,textarea{font:inherit;color:inherit}
 .wrap{padding-block:18px calc(96px + env(safe-area-inset-bottom,0px))}
 
 .nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.nav-in{max-width:960px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);padding-left:max(4px,env(safe-area-inset-left,0px));padding-right:max(4px,env(safe-area-inset-right,0px))}
-.nav button{background:none;border:0;padding:9px 2px 10px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:500;color:var(--muted);cursor:pointer}
+.nav-in{max-width:960px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);padding-left:max(4px,env(safe-area-inset-left,0px));padding-right:max(4px,env(safe-area-inset-right,0px))}
+.nav button{background:none;border:0;padding:9px 0 10px;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:500;color:var(--muted);cursor:pointer}
 .nav button svg{width:22px;height:22px}
 .nav button[aria-current="page"]{color:var(--accent)}
 .nav button[aria-current="page"] .pill{background:var(--accent-soft)}
-.nav .pill{padding:3px 14px;border-radius:99px;display:grid;place-items:center}
+.nav .pill{padding:3px 12px;border-radius:99px;display:grid;place-items:center}
 
 .banner{border-radius:12px;padding:12px 14px;margin-bottom:16px;background:var(--warn-soft);color:var(--fg);border:1px solid var(--line);font-size:14px}
 .sec{display:grid;gap:12px;margin-bottom:26px}
@@ -200,6 +200,7 @@ label.f textarea{min-height:64px;resize:vertical}
     <button data-view="veiculos"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6 17l1.5-6.5A2 2 0 0 1 9.4 9h5.2a2 2 0 0 1 1.9 1.5L18 17"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/></svg></span>Veículos</button>
     <button data-view="clientes"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M15 10h3M15 13.5h3"/></svg></span>Clientes</button>
     <button data-view="locacoes"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></svg></span>Locações</button>
+    <button data-view="multas"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21z"/><path d="M10 8h4M10 12h4M12 15v.5"/></svg></span>Multas</button>
     <button data-view="caixa"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg></span>Caixa</button>
   </div>
 </nav>
@@ -243,11 +244,36 @@ const PAGTO=["Pix","Dinheiro","Cartão","Boleto","Transferência"];
 const CNH_CAT=["A","B","AB","C","D","E","AC","AD","AE","ACC"];
 const UFS="AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
 const MENS=REC[0];
+/* Infrações mais comuns do CTB. Valores base desde a Lei 13.281/2016; o fator multiplica o valor. */
+const GRAV={leve:{t:"Leve",pts:3,v:88.38},media:{t:"Média",pts:4,v:130.16},grave:{t:"Grave",pts:5,v:195.23},gravissima:{t:"Gravíssima",pts:7,v:293.47}};
+const INFR=[
+ ["vel20","Velocidade até 20% acima do limite","Art. 218, I","media",1],
+ ["vel50","Velocidade de 20% a 50% acima do limite","Art. 218, II","grave",1],
+ ["vel50+","Velocidade mais de 50% acima do limite","Art. 218, III","gravissima",3],
+ ["sinal","Avançar o sinal vermelho","Art. 208","gravissima",1],
+ ["cel-mao","Dirigir segurando ou manuseando celular","Art. 252, parágrafo único","gravissima",1],
+ ["cel","Dirigir usando fone de ouvido ou celular","Art. 252, VI","media",1],
+ ["cinto","Deixar de usar o cinto de segurança","Art. 167","grave",1],
+ ["capacete","Conduzir moto sem capacete","Art. 244, I","gravissima",1],
+ ["capacete-p","Transportar passageiro de moto sem capacete","Art. 244, II","gravissima",1],
+ ["estac","Estacionar em desacordo com a regulamentação","Art. 181, XVII","leve",1],
+ ["rodizio","Desrespeitar rodízio / restrição de circulação","Art. 187, I","media",1],
+ ["onibus","Transitar em faixa exclusiva de ônibus","Art. 184, III","gravissima",1],
+ ["retorno","Fazer retorno em local proibido","Art. 206","gravissima",1],
+ ["ultrap","Ultrapassar pela contramão em faixa contínua","Art. 203, V","gravissima",5],
+ ["licenc","Conduzir veículo não licenciado","Art. 230, V","gravissima",1],
+ ["semcnh","Dirigir sem CNH ou permissão","Art. 162, I","gravissima",3],
+ ["cnhvenc","Dirigir com CNH vencida há mais de 30 dias","Art. 162, V","gravissima",1],
+ ["alcool","Dirigir sob influência de álcool","Art. 165","gravissima",10],
+ ["bafometro","Recusar o teste do bafômetro","Art. 165-A","gravissima",10],
+ ["outra","Outra infração (digitar)","","media",1]
+];
+const infrById=id=>INFR.find(x=>x[0]===id);
 const FREQ={semanal:"semana",quinzenal:"quinzena",mensal:"mês"};
 
 /* ---------- estado ---------- */
-const COLS=["veiculos","clientes","locacoes","lancamentos"];
-const S={veiculos:[],clientes:[],locacoes:[],lancamentos:[]};
+const COLS=["veiculos","clientes","locacoes","lancamentos","multas"];
+const S={veiculos:[],clientes:[],locacoes:[],lancamentos:[],multas:[]};
 let db=null, view="painel", mes=ymNow(), q={veiculos:"",clientes:""}, loaded=new Set(), dbState="loading", readOnly=false, filtroTipo="todos";
 try{const v=localStorage.getItem("loc_view");if(v)view=v}catch(e){}
 
@@ -264,6 +290,19 @@ function cnhInfo(c){
   if(d<=30)return{txt:"CNH vence em "+d+" dia"+(d===1?"":"s"),cls:"warn",d};
   return{txt:"CNH válida até "+fd(c.cnhValidade),cls:"ok",d};
 }
+function multaInfo(m){
+  if(m.pagamento==="paga"){return m.cobranca==="a_cobrar"?{txt:"Cobrar do condutor",cls:"warn"}:{txt:"Paga",cls:"ok"}}
+  if(!m.vencimento)return{txt:"Em aberto",cls:""};
+  const d=days(todayIso(),m.vencimento);
+  return d<0?{txt:"Vencida há "+(-d)+" dia"+(d===-1?"":"s"),cls:"bad",d}:d<=7?{txt:d===0?"Vence hoje":"Vence em "+d+" dia"+(d===1?"":"s"),cls:"warn",d}:{txt:"Vence "+fd(m.vencimento),cls:"",d};
+}
+function indicInfo(m){
+  if(m.condutorIndicado||!m.prazoIndicacao)return null;
+  const d=days(todayIso(),m.prazoIndicacao);
+  return d<0?{txt:"Prazo de indicação do condutor passou",cls:"bad"}:d<=5?{txt:"Indicar condutor em "+d+" dia"+(d===1?"":"s"),cls:"warn"}:null;
+}
+const pontos12=cId=>{const lim=iso(new Date(Date.now()-365*864e5));return S.multas.filter(m=>m.clienteId===cId&&(m.dataInfracao||"")>=lim).reduce((a,m)=>a+(+m.pontos||0),0)};
+function locNaData(vId,data){if(!vId||!data)return null;return S.locacoes.find(l=>l.veiculoId===vId&&l.inicio&&l.inicio<=data&&(!l.fim||l.status!=="encerrada"||l.fim>=data))||null}
 function addPeriod(s,freq,n){const d=pd(s);if(freq==="mensal"){const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last))}else d.setDate(d.getDate()+n*(freq==="semanal"?7:15));return iso(d)}
 function locInfo(l){
   const pagos=S.lancamentos.filter(t=>t.tipo==="receita"&&t.locacaoId===l.id&&t.categoria===MENS);
@@ -296,6 +335,9 @@ function vPainel(){
   const alerts=[];
   S.locacoes.filter(l=>l.status!=="encerrada").forEach(l=>{const i=locInfo(l);if(i.st&&i.st.cls!=="ok"){const c=byId("clientes",l.clienteId);alerts.push({cls:i.st.cls,html:'<b>'+esc(i.st.txt)+'</b> · '+esc(c?c.nome:"Cliente")+' — '+esc(veicLabel(byId("veiculos",l.veiculoId)))+'<div class="sub">Próximo pagamento: '+fd(i.prox)+' · '+brl(l.valor)+' por '+FREQ[l.frequencia||"mensal"]+'</div>',act:'<button class="btn sm" data-act="pagar" data-id="'+l.id+'">Registrar pagamento</button>'})}});
   S.clientes.forEach(c=>{const i=cnhInfo(c);if(i&&i.cls!=="ok")alerts.push({cls:i.cls,html:'<b>'+esc(i.txt)+'</b> · '+esc(c.nome)+'<div class="sub">CNH '+esc(c.cnhNumero||"")+' categoria '+esc(c.cnhCategoria||"—")+'</div>',act:'<button class="btn sm" data-act="edit-cliente" data-id="'+c.id+'">Atualizar</button>'})});
+  S.multas.forEach(m=>{const c=byId("clientes",m.clienteId),v=byId("veiculos",m.veiculoId),base=esc(infrTxt(m))+' · '+esc(v?v.placa:"")+(c?" · "+esc(c.nome):"");
+    const ii=indicInfo(m);if(ii)alerts.push({cls:ii.cls,html:'<b>'+esc(ii.txt)+'</b> · '+base+'<div class="sub">Prazo: '+fd(m.prazoIndicacao)+'</div>',act:'<button class="btn sm" data-act="edit-multa" data-id="'+m.id+'">Abrir multa</button>'});
+    const mi=multaInfo(m);if(mi.cls==="bad"||mi.cls==="warn")alerts.push({cls:mi.cls,html:'<b>Multa: '+esc(mi.txt)+'</b> · '+base+'<div class="sub">'+brl(m.valor)+(m.vencimento&&m.pagamento!=="paga"?" · vencimento "+fd(m.vencimento):"")+'</div>',act:'<button class="btn sm" data-act="edit-multa" data-id="'+m.id+'">Abrir multa</button>'})});
   S.veiculos.filter(v=>veicStatus(v)==="manutencao").forEach(v=>alerts.push({cls:"warn",html:'<b>Em manutenção</b> · '+esc(veicLabel(v)),act:'<button class="btn sm" data-act="edit-veiculo" data-id="'+v.id+'">Abrir</button>'}));
 
   const months=[...Array(6)].map((_,i)=>ymShift(mes,i-5));
@@ -359,6 +401,7 @@ function listClientes(){
     const i=cnhInfo(c), l=S.locacoes.find(x=>x.clienteId===c.id&&x.status!=="encerrada"), v=l&&byId("veiculos",l.veiculoId);
     return '<article class="card"><div class="row"><div class="grow"><div class="t ellip">'+esc(c.nome)+exChip(c)+'</div><div class="sub ellip">'+esc([c.cpf?"CPF "+fmtCpf(c.cpf):"",c.telefone].filter(Boolean).join(" · ")||"Sem documento informado")+'</div></div>'+(i?'<span class="chip '+i.cls+'">'+esc(i.cls==="ok"?"CNH "+(c.cnhCategoria||"")+" válida":i.txt)+'</span>':'<span class="chip">Sem CNH</span>')+'</div>'+
     (v?'<div class="sub">Está com '+esc(veicLabel(v))+'</div>':"")+
+    (()=>{const ms=S.multas.filter(m=>m.clienteId===c.id);if(!ms.length)return"";const pts=pontos12(c.id),ab=ms.filter(m=>m.pagamento!=="paga"||m.cobranca==="a_cobrar").length;return '<div class="sub">'+ms.length+' multa'+(ms.length===1?"":"s")+' · <b style="color:var('+(pts>=20?"--out":"--fg")+')">'+pts+' pontos em 12 meses</b>'+(ab?' · '+ab+' pendente'+(ab===1?"":"s"):"")+'</div>'})()+
     '<div class="sub">'+esc([c.cidade,c.uf].filter(Boolean).join(" / "))+(c.cnhNumero?" · CNH "+esc(c.cnhNumero)+" ("+esc(c.cnhCategoria||"—")+") até "+fd(c.cnhValidade):"")+'</div>'+
     '<div class="actions"><button class="btn sm" data-act="edit-cliente" data-id="'+c.id+'">'+IC.edit+'Ver / editar</button></div></article>';
   }).join("");
@@ -393,7 +436,21 @@ function vCaixa(){
   (porV.length?'<section class="sec"><div class="sec-h"><h2>Resultado por veículo</h2></div><div class="panel tbl-wrap"><table><thead><tr><th>Veículo</th><th class="r">Entradas</th><th class="r">Saídas</th><th class="r">Resultado</th></tr></thead><tbody>'+porV.map(r=>'<tr><td>'+esc(veicLabel(r.v))+'</td><td class="r num money in">'+brl(r.e)+'</td><td class="r num money out">'+brl(r.s)+'</td><td class="r num"><b style="color:var('+(r.e-r.s>=0?"--in":"--out")+')">'+brl(r.e-r.s)+'</b></td></tr>').join("")+'</tbody></table></div></section>':"");
 }
 
-const VIEWS={painel:vPainel,veiculos:vVeiculos,clientes:vClientes,locacoes:vLocacoes,caixa:vCaixa};
+const infrTxt=m=>m.infracao==="outra"||!infrById(m.infracao)?(m.descricaoInfracao||"Infração"):infrById(m.infracao)[1];
+function vMultas(){
+  const ab=S.multas.filter(m=>m.pagamento!=="paga"), cobrar=S.multas.filter(m=>m.pagamento==="paga"&&m.cobranca==="a_cobrar");
+  const card=m=>{const c=byId("clientes",m.clienteId),v=byId("veiculos",m.veiculoId),mi=multaInfo(m),ii=indicInfo(m),g=GRAV[m.gravidade];
+    return '<article class="card"><div class="row">'+(v?plateHtml(v):"")+'<div class="grow"><div class="t">'+esc(infrTxt(m))+exChip(m)+'</div><div class="sub">'+esc([m.artigo,m.codigo?"cód. "+m.codigo:"",g?g.t+" · "+(m.pontos||g.pts)+" pts":""].filter(Boolean).join(" · "))+'</div></div><span class="chip '+mi.cls+'">'+esc(mi.txt)+'</span></div>'+
+    '<div class="sub">Condutor: <b style="color:var(--fg)">'+esc(c?c.nome:"não informado")+'</b>'+(m.condutorIndicado?' · indicado ao órgão':ii?' · <span style="color:var('+(ii.cls==="bad"?"--out":"--warn")+')">'+esc(ii.txt)+'</span>':"")+'</div>'+
+    '<div class="sub num">'+fd(m.dataInfracao)+(m.hora?" às "+esc(m.hora):"")+(m.local?" · "+esc(m.local):"")+(m.orgao?" · "+esc(m.orgao):"")+'</div>'+
+    '<div class="sub num"><b style="color:var(--fg)">'+brl(m.valor)+'</b>'+(m.valorDesconto?' · '+brl(m.valorDesconto)+' com desconto':"")+(m.vencimento?' · vence '+fd(m.vencimento):"")+(m.pagamento==="paga"?' · pago '+brl(m.valorPago||m.valor)+' em '+fd(m.dataPagamento):"")+'</div>'+
+    '<div class="actions"><button class="btn sm" data-act="edit-multa" data-id="'+m.id+'">'+IC.edit+'Ver / editar</button></div></article>'};
+  const list=[...S.multas].sort((a,b)=>(b.dataInfracao||"").localeCompare(a.dataInfracao||""));
+  return '<section class="sec"><div class="sec-h"><h2>Multas</h2><button class="btn pri" data-act="new-multa">+ Lançar multa</button></div>'+
+  (S.multas.length?'<div class="kpis"><div class="kpi out"><span class="eyebrow">Em aberto</span><b class="num">'+brl(ab.reduce((a,m)=>a+(+m.valor||0),0))+'</b></div><div class="kpi"><span class="eyebrow">A cobrar dos condutores</span><b class="num">'+brl(cobrar.reduce((a,m)=>a+(+m.valorPago||+m.valor||0),0))+'</b></div><div class="kpi bal"><span class="eyebrow">Multas registradas</span><b class="num">'+S.multas.length+'</b></div></div><div class="list">'+list.map(card).join("")+'</div>'
+  :'<div class="empty"><b>Nenhuma multa registrada</b>Lance a multa com o veículo e a data da infração: o app mostra quem estava com o veículo para você atrelar ao condutor.<button class="btn pri" data-act="new-multa">Lançar primeira multa</button></div>')+'</section>';
+}
+const VIEWS={painel:vPainel,veiculos:vVeiculos,clientes:vClientes,locacoes:vLocacoes,multas:vMultas,caixa:vCaixa};
 
 function render(){
   if(!VIEWS[view])view="painel";
@@ -477,6 +534,44 @@ function formLanc(t){
   '</div></fieldset>',{kind:"lanc",id:t.id,col:"lancamentos"});
 }
 
+function formMulta(m){m=m||{dataInfracao:todayIso(),gravidade:"media",pagamento:"aberta",cobranca:"a_cobrar",infracao:""};
+  openSheet(m.id?"Multa":"Lançar multa",
+  '<fieldset><legend>Veículo e condutor</legend><div class="grid">'+Sel("Veículo","veiculoId",m.veiculoId,[["","Escolha o veículo"],...S.veiculos.map(v=>[v.id,veicLabel(v)])],"full")+
+  F("Data da infração","dataInfracao",m.dataInfracao,"date")+F("Hora","hora",m.hora,"time")+
+  Sel("Condutor responsável","clienteId",m.clienteId,[["","Não informado"],...S.clientes.map(c=>[c.id,c.nome])],"full")+'<div class="hint full" id="h-condutor"></div></div></fieldset>'+
+  '<fieldset><legend>Tipificação da autuação</legend><div class="grid">'+Sel("Infração","infracao",m.infracao,[["","Escolha a infração"],...INFR.map(x=>[x[0],x[1]+(x[2]?" ("+x[2]+")":"")])],"full")+
+  '<div class="full grid" id="outra-box"'+(m.infracao==="outra"?"":" hidden")+'>'+F("Descrição da infração","descricaoInfracao",m.descricaoInfracao,"text",'class="full"')+'</div>'+
+  F("Enquadramento (artigo do CTB)","artigo",m.artigo,"text",'placeholder="Art. 218, I"')+F("Código da infração","codigo",m.codigo,"text",'placeholder="745-50" inputmode="numeric"')+
+  Sel("Gravidade","gravidade",m.gravidade,Object.entries(GRAV).map(([k,g])=>[k,g.t+" ("+g.pts+" pts)"]))+F("Pontos na CNH","pontos",m.pontos??(GRAV[m.gravidade]||{}).pts,"number",'inputmode="numeric" min="0"')+
+  F("Nº do auto (AIT)","numeroAuto",m.numeroAuto,"text",'autocapitalize="characters"')+F("Órgão autuador","orgao",m.orgao,"text",'placeholder="DETRAN-SP, PRF, Prefeitura"')+
+  F("Local","local",m.local,"text",'class="full" placeholder="Av. Paulista, 1000 - São Paulo/SP"')+'</div></fieldset>'+
+  '<fieldset><legend>Valor e prazos</legend><div class="grid">'+F("Valor da multa (R$)","valor",m.valor,"number",'inputmode="decimal" step="0.01" min="0"')+F("Valor com desconto (R$)","valorDesconto",m.valorDesconto,"number",'inputmode="decimal" step="0.01" min="0"')+
+  F("Vencimento (prazo de pagamento)","vencimento",m.vencimento,"date")+F("Prazo para indicar o condutor","prazoIndicacao",m.prazoIndicacao,"date")+
+  '<label class="f full" style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input type="checkbox" name="condutorIndicado" id="f-condutorIndicado" style="width:auto"'+(m.condutorIndicado?" checked":"")+'> Condutor já foi indicado ao órgão</label>'+
+  '<div class="note full">O valor é preenchido pela gravidade, mas confira na notificação. Pagando até o vencimento há 20% de desconto (40% pelo app SNE, se a locadora aderiu). O prazo de indicação do condutor está na notificação de autuação.</div></div></fieldset>'+
+  '<fieldset><legend>Pagamento e cobrança</legend><div class="grid">'+Sel("Situação","pagamento",m.pagamento,[["aberta","Em aberto"],["paga","Paga ao órgão"]])+F("Data do pagamento","dataPagamento",m.dataPagamento,"date")+
+  F("Valor pago (R$)","valorPago",m.valorPago,"number",'inputmode="decimal" step="0.01" min="0"')+Sel("Cobrança do condutor","cobranca",m.cobranca,[["a_cobrar","A cobrar do condutor"],["recebida","Condutor já pagou"],["nao_cobrar","Não cobrar"]])+
+  '<div class="note full">Ao marcar como paga, o app lança a despesa no caixa. Quando o condutor pagar, lança a receita “Multa repassada ao cliente”.</div>'+
+  F("Observações","obs",m.obs,"textarea","full")+'</div></fieldset>',{kind:"multa",id:m.id,col:"multas"});
+  sugerirCondutor(false);
+}
+function sugerirCondutor(apply){
+  const h=$("#h-condutor");if(!h)return;
+  const l=locNaData($("#f-veiculoId").value,$("#f-dataInfracao").value), c=l&&byId("clientes",l.clienteId);
+  if(!$("#f-veiculoId").value){h.className="hint full";h.textContent="";return}
+  if(c){h.className="hint full ok";h.textContent="Nessa data o veículo estava com "+c.nome+" (locação desde "+fd(l.inicio)+").";if(apply)$("#f-clienteId").value=c.id}
+  else{h.className="hint full";h.textContent="Nenhuma locação desse veículo nessa data. Escolha o condutor manualmente."}
+}
+function aplicaInfracao(){
+  const x=infrById($("#f-infracao").value);$("#outra-box").hidden=!x||x[0]!=="outra";if(!x)return;
+  if(x[0]!=="outra"){$("#f-artigo").value=x[2];}
+  $("#f-gravidade").value=x[3];aplicaGravidade(x[4]);
+}
+function aplicaGravidade(fator){
+  const g=GRAV[$("#f-gravidade").value];if(!g)return;
+  if(!fator){const x=infrById($("#f-infracao").value);fator=x&&x[3]===$("#f-gravidade").value?x[4]:1}
+  $("#f-pontos").value=g.pts;const v=+(g.v*fator).toFixed(2);$("#f-valor").value=v.toFixed(2);$("#f-valorDesconto").value=(v*0.8).toFixed(2);
+}
 /* validação ao vivo dentro da folha */
 function wireLive(){
   const f=$("#frm");if(!f)return;
@@ -500,6 +595,7 @@ function wireLive(){
     const n=e.target.name;
     if(n==="tipo"&&sheet&&sheet.kind==="lanc"){const tipo=e.target.value,sel=$("#f-categoria");sel.innerHTML=(tipo==="receita"?REC:DESP).map(c=>'<option>'+esc(c)+'</option>').join("");$("#rec-box").hidden=tipo!=="receita";$("#manut-box").hidden=sel.value!=="Manutenção"}
     if(n==="categoria"){$("#manut-box").hidden=e.target.value!=="Manutenção"}
+    if(sheet&&sheet.kind==="multa"){if(n==="veiculoId"||n==="dataInfracao")sugerirCondutor(true);if(n==="infracao")aplicaInfracao();if(n==="gravidade")aplicaGravidade();if(n==="pagamento"&&e.target.value==="paga"){const d=$("#f-dataPagamento"),vp=$("#f-valorPago");if(!d.value)d.value=todayIso();if(!vp.value)vp.value=$("#f-valorDesconto").value||$("#f-valor").value}}
     if(n==="locacaoId"&&e.target.value){const l=byId("locacoes",e.target.value);if(l){$("#f-veiculoId").value=l.veiculoId||"";const v=$("#f-valor");if(!v.value)v.value=l.valor||""}}
   });
 }
@@ -515,6 +611,7 @@ function validate(kind,o){
   if(kind==="veiculo"){o.placa=normPlate(o.placa);o.chassi=(o.chassi||"").toUpperCase();o.motor=(o.motor||"").toUpperCase();if(!o.placa)return"Informe a placa do veículo.";if(!plateOk(o.placa))return"A placa precisa estar no formato ABC1D23 ou ABC1234.";if(S.veiculos.some(v=>v.placa===o.placa&&v.id!==sheet.id))return"Já existe um veículo com a placa "+o.placa+".";}
   if(kind==="cliente"){if(!o.nome)return"Informe o nome completo.";o.cpf=digits(o.cpf);if(o.cpf&&!cpfOk(o.cpf))return"O CPF informado é inválido. Confira os números.";if(o.cpf&&S.clientes.some(c=>c.cpf===o.cpf&&c.id!==sheet.id))return"Já existe um cliente com esse CPF.";}
   if(kind==="locacao"){if(!o.clienteId)return"Escolha o cliente.";if(!o.veiculoId)return"Escolha o veículo.";if(!o.valor)return"Informe o valor da locação.";if(!o.inicio)return"Informe a data de início.";if(o.status==="encerrada"&&!o.fim)o.fim=todayIso();}
+  if(kind==="multa"){if(!o.veiculoId)return"Escolha o veículo multado.";if(!o.dataInfracao)return"Informe a data da infração.";if(!o.infracao)return"Escolha a infração.";if(o.infracao==="outra"&&!o.descricaoInfracao)return"Descreva a infração.";if(!o.valor)return"Informe o valor da multa.";if(o.pagamento==="paga"&&!o.dataPagamento)o.dataPagamento=todayIso();if(o.pagamento==="paga"&&!o.valorPago)o.valorPago=o.valor;if(o.cobranca==="recebida"&&!o.clienteId)return"Escolha o condutor que pagou a multa.";}
   if(kind==="lanc"){if(!o.valor||o.valor<=0)return"Informe um valor maior que zero.";if(!o.data)return"Informe a data.";if(o.tipo!=="receita")o.locacaoId="";if(o.categoria!=="Manutenção"){delete o.pecas;delete o.maoDeObra;delete o.oficina;delete o.km}
     if(o.locacaoId&&!o.clienteId){const l=byId("locacoes",o.locacaoId);if(l)o.clienteId=l.clienteId}if(!o.locacaoId)o.clienteId="";}
   return null;
@@ -529,9 +626,15 @@ async function save(){
   delete data.id; if(!prev)data.criadoEm=Date.now(); delete data.exemplo; if(prev&&prev.exemplo)data.exemplo=true;
   const btn=$("#frm button[type=submit]");btn.disabled=true;
   try{
-    if(sheet.id)await db.collection(col).doc(sheet.id).set(data);else await db.collection(col).add(data);
+    if(sheet.kind==="multa"){
+      const ref=sheet.id?db.collection(col).doc(sheet.id):db.collection(col).doc(), desc=infrTxt(data)+(data.numeroAuto?" · AIT "+data.numeroAuto:"");
+      if(data.pagamento==="paga"&&!data.lancPagoId){const r=await db.collection("lancamentos").add({tipo:"despesa",categoria:"Multa",valor:data.valorPago||data.valor,data:data.dataPagamento,veiculoId:data.veiculoId,locacaoId:"",clienteId:"",formaPagamento:"Boleto",descricao:"Multa paga: "+desc,multaId:ref.id,criadoEm:Date.now()});data.lancPagoId=r.id}
+      if(data.cobranca==="recebida"&&!data.lancRecebidoId){const r=await db.collection("lancamentos").add({tipo:"receita",categoria:"Multa repassada ao cliente",valor:data.valorPago||data.valor,data:todayIso(),veiculoId:data.veiculoId,locacaoId:"",clienteId:data.clienteId,formaPagamento:"Pix",descricao:"Reembolso de multa: "+desc,multaId:ref.id,criadoEm:Date.now()});data.lancRecebidoId=r.id}
+      await ref.set(data);
+    }
+    else if(sheet.id)await db.collection(col).doc(sheet.id).set(data);else await db.collection(col).add(data);
     if(sheet.kind==="locacao"&&!prev&&o.caucao>0)await db.collection("lancamentos").add({tipo:"receita",categoria:"Caução",valor:o.caucao,data:o.inicio,veiculoId:o.veiculoId,locacaoId:"",clienteId:o.clienteId,formaPagamento:"Pix",descricao:"Caução da locação",criadoEm:Date.now()});
-    const msg={veiculo:"Veículo salvo",cliente:"Cliente salvo",locacao:"Locação salva",lanc:"Lançamento salvo"}[sheet.kind];
+    const msg={veiculo:"Veículo salvo",cliente:"Cliente salvo",locacao:"Locação salva",lanc:"Lançamento salvo",multa:"Multa salva"}[sheet.kind];
     closeSheet();toast(msg);
   }catch(e){btn.disabled=false;dbErr(e)}
 }
@@ -579,6 +682,8 @@ document.addEventListener("click",e=>{
     case "edit-lanc":return formLanc(byId("lancamentos",id));
     case "pagar":{const l=byId("locacoes",id);if(!l)return;const i=locInfo(l);return formLanc({tipo:"receita",categoria:MENS,locacaoId:l.id,veiculoId:l.veiculoId,valor:l.valor,data:todayIso(),descricao:"Pagamento referente a "+fd(i.prox)})}
     case "clear-ex":return clearExamples();
+    case "new-multa":if(!S.veiculos.length)return toast("Cadastre um veículo primeiro.");return formMulta();
+    case "edit-multa":return formMulta(byId("multas",id));
   }
 });
 document.addEventListener("change",e=>{if(e.target.dataset.act==="filtro"){filtroTipo=e.target.value;render()}});
