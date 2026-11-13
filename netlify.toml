@@ -1,0 +1,4 @@
+# Publica o sistema "Gestão da Locadora" (pasta saas/public) na Netlify.
+[build]
+  publish = "saas/public"
+  command = ""

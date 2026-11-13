@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Gestão da Locadora</title>
+<meta name="description" content="Sistema para locadoras de carros e motos: veículos, motoristas, locações, multas e fluxo de caixa.">
+<meta name="theme-color" content="#2B2D33">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Locadora">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icone-180.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<div id="auth" hidden></div>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: app de bolso — cabeçalho fixo, conteúdo em coluna única (até 960px), navegação inferior; formulários abrem numa folha deslizante. */
+:root{
+  --bg:#EDEFF3; --surface:#FFFFFF; --surface2:#E3E7EE; --line:#D2D8E1;
+  --fg:#1D222B; --muted:#5A6272; --accent:#283447; --accent-fg:#FFFFFF; --accent-soft:#DCE3EE;
+  --brand-red:#8E5A57; --head-bg:#2B2D33; --head-fg:#E4E4E8; --head-muted:#A3A8B4;
+  --in:#1E7A4C; --out:#B3261E; --warn:#9A5600; --warn-soft:#FBEACF; --bad-soft:#F8DCD9;
+  --plate-bg:#FFFFFF; --plate-fg:#111111; --plate-band:#0A3A9C; --plate-line:#9AA3B0;
+  --shadow:0 10px 30px rgba(20,26,40,.2);
+  --f-display:"Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1B1D22; --surface:#24272E; --surface2:#2D3139; --line:#3A3F49;
+  --fg:#E4E4E8; --muted:#9BA1AE; --accent:#8FA6CB; --accent-fg:#141A24; --accent-soft:#2C3648;
+  --brand-red:#B07A76; --head-bg:#24262C; --head-fg:#E4E4E8; --head-muted:#9BA1AE;
+  --in:#55C98F; --out:#F2877E; --warn:#F0B45C; --warn-soft:#3A2A11; --bad-soft:#3E1D1A;
+  --plate-line:#5D6470; --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#1B1D22; --surface:#24272E; --surface2:#2D3139; --line:#3A3F49;
+  --fg:#E4E4E8; --muted:#9BA1AE; --accent:#8FA6CB; --accent-fg:#141A24; --accent-soft:#2C3648;
+  --brand-red:#B07A76; --head-bg:#24262C; --head-fg:#E4E4E8; --head-muted:#9BA1AE;
+  --in:#55C98F; --out:#F2877E; --warn:#F0B45C; --warn-soft:#3A2A11; --bad-soft:#3E1D1A;
+  --plate-line:#5D6470; --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--head-bg)}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--head-bg);color:var(--head-fg);border-bottom:3px solid var(--accent)}
+.top-in,.wrap{max-width:960px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top-in{display:flex;align-items:center;gap:12px;padding-block:10px}
+.top .btn.pri{background:var(--brand-red);border-color:var(--brand-red);color:#FFFFFF}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-mark{width:54px;height:54px;flex:none;display:block;background:#E4E4E8;border-radius:13px;padding:4px}
+.brand h1{font-size:clamp(15px,4.3vw,18px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--head-muted);font-size:12px;font-family:var(--f-body)}
+.top .sp{flex:1}
+.wrap{padding-block:18px calc(96px + env(safe-area-inset-bottom,0px))}
+
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav-in{max-width:960px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);padding-left:max(4px,env(safe-area-inset-left,0px));padding-right:max(4px,env(safe-area-inset-right,0px))}
+.nav button{background:none;border:0;padding:9px 0 10px;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11.5px;font-weight:500;color:var(--muted);cursor:pointer}
+.nav button svg{width:22px;height:22px}
+.nav button[aria-current="page"]{color:var(--accent)}
+.nav button[aria-current="page"] .pill{background:var(--accent-soft)}
+.nav .pill{padding:3px 12px;border-radius:99px;display:grid;place-items:center}
+
+.banner{border-radius:12px;padding:12px 14px;margin-bottom:16px;background:var(--warn-soft);color:var(--fg);border:1px solid var(--line);font-size:14px}
+.sec{display:grid;gap:12px;margin-bottom:26px}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.sec-h h2{font-size:19px}
+.eyebrow{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
+.kpi b{display:block;font-family:var(--f-display);font-size:clamp(17px,4.6vw,24px);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi.in b{color:var(--in)} .kpi.out b{color:var(--out)}
+@media (max-width:520px){.kpis{grid-template-columns:1fr 1fr}.kpis .kpi.bal{grid-column:1 / -1}}
+
+.fleet{display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:3px 10px;font-size:12.5px;font-weight:600;background:var(--surface2);color:var(--fg);white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--accent)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--out)}
+.chip.ex{background:var(--surface2);color:var(--muted);font-weight:500}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+
+.list{display:grid;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:10px;min-width:0}
+.row{display:flex;align-items:center;gap:12px;min-width:0}
+.row .grow{flex:1;min-width:0}
+.t{font-weight:600}
+.sub{color:var(--muted);font-size:13.5px}
+.ellip{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+
+.alert{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:12px;padding:11px 13px}
+.alert.bad{border-left-color:var(--out)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;border:1px solid var(--line);background:var(--surface);padding:8px 13px;font-weight:600;font-size:14px;cursor:pointer;white-space:nowrap}
+.btn:hover{background:var(--surface2)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.pri:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--out)}
+.btn.sm{padding:5px 10px;font-size:13px}
+.btn svg{width:16px;height:16px}
+.icon-btn{background:none;border:0;padding:6px;border-radius:8px;cursor:pointer;color:var(--muted)}
+
+/* placa no padrão Mercosul */
+.plate{flex:none;width:96px;border:2px solid var(--plate-line);border-radius:7px;background:var(--plate-bg);color:var(--plate-fg);overflow:hidden;text-align:center}
+.plate i{display:block;background:var(--plate-band);color:#fff;font-style:normal;font-size:7.5px;letter-spacing:.2em;font-weight:700;padding:1px 0;font-family:var(--f-body)}
+.plate span{display:block;font-family:var(--f-mono);font-weight:700;font-size:15px;letter-spacing:.04em;padding:3px 2px 4px}
+.plate.moto{width:70px}
+.plate.moto span{font-size:12.5px;line-height:1.15;padding:2px 2px 3px}
+
+.search{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface)}
+
+.money.in{color:var(--in)} .money.out{color:var(--out)}
+.tx{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--line)}
+.tx:first-child{border-top:0}
+.tx-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--surface2);flex:none}
+.tx-ic.in{color:var(--in)} .tx-ic.out{color:var(--out)}
+.tx-ic svg{width:18px;height:18px}
+.tx .money{font-weight:700;font-family:var(--f-mono);font-size:14px;white-space:nowrap}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px 14px}
+
+.monthbar{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px}
+.monthbar b{flex:1;text-align:center;font-family:var(--f-display)}
+
+.chart{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:end;height:150px;padding:10px 4px 0}
+.chart .col{display:flex;flex-direction:column;align-items:center;gap:6px;height:100%;min-width:0}
+.chart .bars{flex:1;width:100%;display:flex;gap:3px;align-items:flex-end;justify-content:center;border-bottom:1px solid var(--line)}
+.chart .b{width:min(18px,40%);border-radius:4px 4px 0 0;min-height:2px}
+.chart .b.in{background:var(--in)} .chart .b.out{background:var(--out)}
+.chart small{font-size:11px;color:var(--muted);text-transform:capitalize}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+.empty{background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:22px;text-align:center;color:var(--muted);display:grid;gap:10px;justify-items:center}
+
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 8px;border-top:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:600;border-top:0}
+td.r,th.r{text-align:right}
+
+/* folha do formulário */
+.sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(5,15,12,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:640px;max-height:92%;overflow:auto;border-radius:18px 18px 0 0;box-shadow:var(--shadow);padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+@media (min-width:700px){.sheet-bg{align-items:center}.sheet{border-radius:18px;max-height:88%}}
+.sheet-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.sheet-h h2{font-size:20px}
+form{display:grid;gap:14px}
+fieldset{border:0;padding:0;margin:0;display:grid;gap:12px}
+legend{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:8px;padding:0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.grid.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.full{grid-column:1 / -1}
+@media (max-width:460px){.grid.g3{grid-template-columns:1fr 1fr}}
+label.f{display:grid;gap:5px;font-size:13px;font-weight:600;color:var(--muted);min-width:0}
+label.f input,label.f select,label.f textarea{width:100%;padding:10px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font-weight:400;font-size:16px;min-width:0}
+label.f textarea{min-height:64px;resize:vertical}
+.hint{font-size:12.5px;font-weight:400;color:var(--muted)}
+.hint.ok{color:var(--in)} .hint.bad{color:var(--out)}
+.seg{display:flex;background:var(--surface2);border-radius:11px;padding:3px;gap:3px}
+.seg label{flex:1;text-align:center;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:block;padding:8px;border-radius:8px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg input:checked + span{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.seg input:focus-visible + span{outline:2px solid var(--accent)}
+.note{background:var(--surface2);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted)}
+.form-foot{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;position:sticky;bottom:calc(-18px - env(safe-area-inset-bottom,0px));background:var(--surface);padding:12px 0 4px;border-top:1px solid var(--line)}
+.form-foot .r{display:flex;gap:8px;margin-left:auto}
+.sum{font-family:var(--f-mono);font-weight:700}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;font-size:14px;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .22s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}}
+/* dashboard */
+:root{--c-in:#2F63B8;--c-out:#C62828;--grid:#E3E7EE}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--c-in:#5E8FE0;--c-out:#EF5350;--grid:#30343C}}
+:root[data-theme="dark"]{--c-in:#5E8FE0;--c-out:#EF5350;--grid:#30343C}
+.perbar{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;gap:10px}
+.perbar .seg label span{padding:7px 4px;font-size:13px}
+.perrow{display:flex;align-items:center;gap:6px}
+.perdates{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+.perdates label{display:grid;gap:3px;font-size:12px;font-weight:600;color:var(--muted);min-width:0}
+.perdates input{width:100%;min-width:0;padding:8px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font-size:15px}
+.perlabel{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;font-family:var(--f-display);font-size:16px}
+.kpis.k4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:760px){.kpis.k4{grid-template-columns:1fr 1fr}.kpis.k4 .kpi.bal{grid-column:auto}}
+.kpi .dl{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
+.kpi .dl.up{color:var(--in)} .kpi .dl.down{color:var(--out)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.sw.in{background:var(--c-in)} .sw.out{background:var(--c-out)}
+.legend .sw{margin-right:0}
+.chartbox{position:relative;padding:12px 14px 8px;overflow:hidden}
+.ch{display:block;max-width:100%;height:auto;overflow:visible}
+.ch .grid{stroke:var(--grid);stroke-width:1} .ch .base{stroke:var(--muted);stroke-width:1}
+.ch .ax{fill:var(--muted);font-size:11px;font-family:var(--f-body)} .ch .ax.strong{fill:var(--fg);font-weight:700;font-size:12px}
+.ch .b-in{fill:var(--c-in)} .ch .b-out{fill:var(--c-out)}
+.ch .hit{fill:transparent;cursor:crosshair} .ch .hit:hover{fill:var(--fg);fill-opacity:.05}
+.ch .sal-line{fill:none;stroke:var(--c-in);stroke-width:2;stroke-linejoin:round}
+.ch .sal-area{fill:var(--c-in);fill-opacity:.12}
+.ch .sal-end{fill:var(--c-in);stroke:var(--surface);stroke-width:2}
+.ch .xhair{stroke:var(--muted);stroke-dasharray:3 3}
+.ch .xhair[hidden],.tip[hidden]{display:none}
+.tip{position:absolute;z-index:5;pointer-events:none;background:var(--surface);color:var(--fg);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:10px;padding:8px 10px;font-size:12.5px;display:grid;gap:2px;min-width:150px}
+.tip span{display:flex;align-items:center;font-variant-numeric:tabular-nums}
+details.tbl{margin-top:6px;border-top:1px solid var(--line);padding-top:6px}
+details.tbl summary{cursor:pointer;color:var(--muted);font-size:13px;font-weight:600;padding:4px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:760px){.two{grid-template-columns:1fr}}
+.panel.pad{padding:12px 14px}
+.hbars{display:grid;gap:9px}
+.hb{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:13.5px}
+.hb-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb-track{height:10px;background:var(--surface2);border-radius:0 4px 4px 0;overflow:hidden}
+.hb-track i{display:block;height:100%;border-radius:0 4px 4px 0}
+.hb-track i.in{background:var(--c-in)} .hb-track i.out{background:var(--c-out)}
+.hb-v{font-weight:600}
+.head-ic{color:var(--head-fg);opacity:.85}
+.head-ic:hover{opacity:1;background:rgba(255,255,255,.08)}
+.btn.wa{color:#FFFFFF;background:#1F8F4E;border-color:#1F8F4E;text-decoration:none}
+.btn.wa:hover{filter:brightness(1.08);background:#1F8F4E}
+a.btn{text-decoration:none;color:inherit}
+a.btn.wa{color:#FFFFFF}
+/* ---------- versão para venda ---------- */
+body.sem-login .top, body.sem-login .nav, body.sem-login #main{display:none}
+#auth{min-height:100vh;background:var(--head-bg);color:var(--head-fg);padding:max(24px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 32px max(16px,env(safe-area-inset-left,0px))}
+.auth-wrap{max-width:980px;margin:0 auto;display:grid;grid-template-columns:1.1fr 1fr;gap:32px;align-items:center;min-height:calc(100vh - 56px)}
+@media (max-width:800px){.auth-wrap{grid-template-columns:1fr;gap:20px;min-height:0}.auth-pitch ul{display:none}}
+.auth-brand{display:flex;align-items:center;gap:14px}
+.auth-brand .brand-mark{width:64px;height:64px}
+.auth-brand h1{font-size:clamp(22px,4vw,30px);color:var(--head-fg)}
+.auth-brand p{margin:2px 0 0;color:var(--head-muted)}
+.auth-pitch ul{margin:22px 0 0;padding:0;list-style:none;display:grid;gap:10px}
+.auth-pitch li{padding-left:26px;position:relative;color:var(--head-fg)}
+.auth-pitch li::before{content:"";position:absolute;left:4px;top:7px;width:10px;height:6px;border-left:2px solid var(--accent-soft);border-bottom:2px solid var(--accent-soft);transform:rotate(-45deg)}
+.auth-pitch .preco{margin-top:22px;font-size:17px;color:var(--head-muted)}
+.auth-pitch .preco b{font-family:var(--f-display);font-size:28px;color:var(--head-fg)}
+.auth-card{background:var(--surface);color:var(--fg);border-radius:18px;padding:24px;box-shadow:var(--shadow);display:grid;gap:12px}
+.auth-card h2{font-size:22px}
+.auth-card p{margin:0}
+.auth-card form{gap:12px}
+.btn.big{padding:12px 16px;font-size:16px;width:100%}
+.auth-links{display:grid;gap:8px;justify-items:center;font-size:14px;color:var(--muted);text-align:center}
+.lnk{background:none;border:0;padding:0;color:var(--accent);font-weight:600;cursor:pointer;text-decoration:underline}
+label.f.chk{display:flex;gap:8px;align-items:flex-start;color:var(--fg);font-weight:400;font-size:13.5px}
+label.f.chk input{width:auto;margin-top:2px}
+label.f.chk a{color:var(--accent)}
+.banner.trial{background:var(--accent-soft)}
+.menu{display:grid;gap:8px}
+.menu-i{display:grid;gap:2px;text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;color:var(--fg);text-decoration:none;font:inherit}
+.menu-i:hover{background:var(--surface2)}
+.menu-i span{color:var(--muted);font-size:13px}
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="130 -10 1710 1750" role="img" aria-label="Logo JR">
+  <path d="M985 4 L1662 189 L1662 800 Q1662 925 1625 1000 L345 1000 Q308 925 308 800 L308 189 Z" fill="#283447" stroke="#3A3B3F" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M985 122 L1562 279 L1562 800 Q1562 880 1545 940 L430 940 Q410 880 410 800 L410 279 Z" fill="#2B2D33"/>
+  <text x="985" y="632" text-anchor="middle" font-family="Archivo, 'Arial Black', Arial, sans-serif" font-weight="800" font-size="530" letter-spacing="-10" fill="#E4E4E8">JR</text>
+  <path d="M150 1180 Q985 300 1818 1172 Q985 2262 150 1180 Z" fill="#283447" stroke="#3A3B3F" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M276 1180 Q985 470 1694 1180 Q985 2100 276 1180 Z" fill="#2B2D33"/>
+  <circle cx="985" cy="1185" r="310" fill="#283447"/>
+  <circle cx="985" cy="1185" r="202" fill="#2B2D33"/>
+  <path d="M1110 940 A275 275 0 0 1 925 1455" fill="none" stroke="#E4E4E8" stroke-width="108"/>
+  <circle cx="1058" cy="1118" r="58" fill="#8E5A57"/>
+</svg>
+      <div style="min-width:0"><h1>Gestão da Locadora</h1><small id="sync">Conectando…</small></div>
+    </div>
+    <div class="sp"></div>
+    <button class="icon-btn head-ic" data-act="menu" aria-label="Menu" title="Menu"></button>
+    <button class="btn pri sm" data-act="quick" id="quick-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Lançar</button>
+  </div>
+</header>
+
+<main class="wrap" id="main"></main>
+
+<nav class="nav" aria-label="Seções">
+  <div class="nav-in" id="nav">
+    <button data-view="painel"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>Painel</button>
+    <button data-view="veiculos"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6 17l1.5-6.5A2 2 0 0 1 9.4 9h5.2a2 2 0 0 1 1.9 1.5L18 17"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/></svg></span>Veículos</button>
+    <button data-view="clientes"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M15 10h3M15 13.5h3"/></svg></span>Clientes</button>
+    <button data-view="locacoes"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></svg></span>Locações</button>
+    <button data-view="multas"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21z"/><path d="M10 8h4M10 12h4M12 15v.5"/></svg></span>Multas</button>
+    <button data-view="caixa"><span class="pill"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3"/></svg></span>Caixa</button>
+  </div>
+</nav>
+
+<div id="sheet-root"></div>
+<div id="toast-root"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- utilidades ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const brl=n=>(+n||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const pad=n=>String(n).padStart(2,"0");
+const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const todayIso=()=>iso(new Date());
+const pd=s=>{if(!s)return null;const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const fd=s=>s?s.split("-").reverse().join("/"):"—";
+const days=(a,b)=>Math.round((pd(b)-pd(a))/864e5);
+const ymOf=s=>(s||"").slice(0,7);
+const ymNow=()=>todayIso().slice(0,7);
+const ymShift=(ym,n)=>{const[y,m]=ym.split("-").map(Number);const d=new Date(y,m-1+n,1);return d.getFullYear()+"-"+pad(d.getMonth()+1)};
+const ymLabel=(ym,short)=>{const[y,m]=ym.split("-").map(Number);const d=new Date(y,m-1,1);return short?d.toLocaleDateString("pt-BR",{month:"short"}).replace(".",""):(s=>s.charAt(0).toUpperCase()+s.slice(1))(d.toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))};
+const digits=s=>String(s||"").replace(/\D/g,"");
+const fmtCpf=s=>{const d=digits(s);return d.length===11?d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,"$1.$2.$3-$4"):s||""};
+const cpfOk=s=>{const c=digits(s);if(c.length!==11||/^(\d)\1+$/.test(c))return false;for(let t=9;t<11;t++){let x=0;for(let i=0;i<t;i++)x+=+c[i]*(t+1-i);if((x*10)%11%10!==+c[t])return false}return true};
+const normPlate=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+const plateOk=s=>/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(normPlate(s));
+const plateKind=s=>{const p=normPlate(s);return /^[A-Z]{3}\d[A-Z]\d{2}$/.test(p)?"Mercosul":/^[A-Z]{3}\d{4}$/.test(p)?"modelo antigo":""};
+
+/* Decodificação do chassi (VIN): fabricante pelo WMI e ano-modelo pela 10ª posição */
+const WMI={"9BW":"Volkswagen","8AW":"Volkswagen","9BG":"Chevrolet","8AG":"Chevrolet","9BD":"Fiat","8AP":"Fiat","9BF":"Ford","8AF":"Ford","93H":"Honda","9C2":"Honda","9C6":"Yamaha","93Y":"Renault","9BR":"Toyota","8AJ":"Toyota","9BH":"Hyundai","94D":"Nissan","9BM":"Mercedes-Benz","936":"Peugeot","935":"Citroën"};
+const VINY={A:2010,B:2011,C:2012,D:2013,E:2014,F:2015,G:2016,H:2017,J:2018,K:2019,L:2020,M:2021,N:2022,P:2023,R:2024,S:2025,T:2026,V:2027,W:2028,X:2029,Y:2030,1:2001,2:2002,3:2003,4:2004,5:2005,6:2006,7:2007,8:2008,9:2009};
+const decodeVin=v=>{v=String(v||"").toUpperCase().replace(/[^A-Z0-9]/g,"");if(v.length!==17)return null;return{marca:WMI[v.slice(0,3)]||"",ano:VINY[v[9]]||""}};
+
+const REC=["Mensalidade / aluguel","Caução","Multa repassada ao cliente","Venda de veículo","Outras receitas"];
+const DESP=["Manutenção","Seguro","IPVA / licenciamento","Multa","Rastreador","Financiamento / parcela","Combustível","Lavagem","Outras despesas"];
+const PAGTO=["Pix","Dinheiro","Cartão","Boleto","Transferência"];
+const CNH_CAT=["A","B","AB","C","D","E","AC","AD","AE","ACC"];
+const UFS="AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
+const MENS=REC[0];
+/* Infrações mais comuns do CTB. Valores base desde a Lei 13.281/2016; o fator multiplica o valor. */
+const GRAV={leve:{t:"Leve",pts:3,v:88.38},media:{t:"Média",pts:4,v:130.16},grave:{t:"Grave",pts:5,v:195.23},gravissima:{t:"Gravíssima",pts:7,v:293.47}};
+const INFR=[
+ ["vel20","Velocidade até 20% acima do limite","Art. 218, I","media",1],
+ ["vel50","Velocidade de 20% a 50% acima do limite","Art. 218, II","grave",1],
+ ["vel50+","Velocidade mais de 50% acima do limite","Art. 218, III","gravissima",3],
+ ["sinal","Avançar o sinal vermelho","Art. 208","gravissima",1],
+ ["cel-mao","Dirigir segurando ou manuseando celular","Art. 252, parágrafo único","gravissima",1],
+ ["cel","Dirigir usando fone de ouvido ou celular","Art. 252, VI","media",1],
+ ["cinto","Deixar de usar o cinto de segurança","Art. 167","grave",1],
+ ["capacete","Conduzir moto sem capacete","Art. 244, I","gravissima",1],
+ ["capacete-p","Transportar passageiro de moto sem capacete","Art. 244, II","gravissima",1],
+ ["estac","Estacionar em desacordo com a regulamentação","Art. 181, XVII","leve",1],
+ ["rodizio","Desrespeitar rodízio / restrição de circulação","Art. 187, I","media",1],
+ ["onibus","Transitar em faixa exclusiva de ônibus","Art. 184, III","gravissima",1],
+ ["retorno","Fazer retorno em local proibido","Art. 206","gravissima",1],
+ ["ultrap","Ultrapassar pela contramão em faixa contínua","Art. 203, V","gravissima",5],
+ ["licenc","Conduzir veículo não licenciado","Art. 230, V","gravissima",1],
+ ["semcnh","Dirigir sem CNH ou permissão","Art. 162, I","gravissima",3],
+ ["cnhvenc","Dirigir com CNH vencida há mais de 30 dias","Art. 162, V","gravissima",1],
+ ["alcool","Dirigir sob influência de álcool","Art. 165","gravissima",10],
+ ["bafometro","Recusar o teste do bafômetro","Art. 165-A","gravissima",10],
+ ["outra","Outra infração (digitar)","","media",1]
+];
+const infrById=id=>INFR.find(x=>x[0]===id);
+const FREQ={semanal:"semana",quinzenal:"quinzena",mensal:"mês"};
+
+/* ---------- estado ---------- */
+const COLS=["veiculos","clientes","locacoes","lancamentos","multas"];
+const S={veiculos:[],clientes:[],locacoes:[],lancamentos:[],multas:[]};
+let pendDel=null, pendT=null, db=null, view="painel", mes=ymNow(), q={veiculos:"",clientes:""}, loaded=new Set(), dbState="loading", readOnly=false, filtroTipo="todos";
+try{const v=localStorage.getItem("loc_view");if(v&&v!=="adm")view=v}catch(e){}
+
+const byId=(col,id)=>S[col].find(x=>x.id===id);
+const veicLabel=v=>v?(v.placa||"s/ placa")+" · "+[v.marca,v.modelo].filter(Boolean).join(" "):"—";
+const locAtiva=vId=>S.locacoes.find(l=>l.veiculoId===vId&&l.status!=="encerrada");
+const veicStatus=v=>locAtiva(v.id)?"alugado":(v.status==="manutencao"?"manutencao":"disponivel");
+const STATUS_TXT={alugado:["Alugado","ok"],disponivel:["Disponível",""],manutencao:["Em manutenção","warn"]};
+
+/* "1 dia vencido", "2 semanas vencidas", "1 semana e 3 dias vencidos", "1 mês, 1 semana e 2 dias vencidos" */
+function tempoPartes(d){const m=Math.floor(d/30),r=d%30,w=Math.floor(r/7),dd=r%7,p=[];
+  if(m)p.push([m,m===1?"mês":"meses","m"]);if(w)p.push([w,w===1?"semana":"semanas","f"]);if(dd)p.push([dd,dd===1?"dia":"dias","m"]);return p}
+function tempoTxt(d){const p=tempoPartes(d).map(x=>x[0]+" "+x[1]);return p.length>1?p.slice(0,-1).join(", ")+" e "+p[p.length-1]:p[0]||"0 dias"}
+function vencidoTxt(d){const p=tempoPartes(d);let suf;if(p.length===1){const[n,,g]=p[0];suf=g==="f"?(n===1?"vencida":"vencidas"):(n===1?"vencido":"vencidos")}else suf="vencidos";return tempoTxt(d)+" "+suf}
+function venceTxt(d){return d===0?"Vence hoje":d===1?"Vence amanhã":"Vence em "+tempoTxt(d)}
+function cnhInfo(c){
+  if(!c.cnhValidade)return null;
+  const d=days(todayIso(),c.cnhValidade);
+  if(d<0)return{txt:"CNH vencida há "+tempoTxt(-d),cls:"bad",d};
+  if(d<=30)return{txt:"CNH "+venceTxt(d).toLowerCase(),cls:"warn",d};
+  return{txt:"CNH válida até "+fd(c.cnhValidade),cls:"ok",d};
+}
+function multaInfo(m){
+  if(m.pagamento==="paga"){return m.cobranca==="a_cobrar"?{txt:"Cobrar do condutor",cls:"warn"}:{txt:"Paga",cls:"ok"}}
+  if(!m.vencimento)return{txt:"Em aberto",cls:""};
+  const d=days(todayIso(),m.vencimento);
+  return d<0?{txt:vencidoTxt(-d).replace(/^./,c=>c.toUpperCase()),cls:"bad",d}:d<=7?{txt:venceTxt(d),cls:"warn",d}:{txt:"Vence "+fd(m.vencimento),cls:"",d};
+}
+function indicInfo(m){
+  if(m.condutorIndicado||!m.prazoIndicacao)return null;
+  const d=days(todayIso(),m.prazoIndicacao);
+  return d<0?{txt:"Prazo de indicação do condutor passou",cls:"bad"}:d<=5?{txt:"Indicar condutor em "+d+" dia"+(d===1?"":"s"),cls:"warn"}:null;
+}
+const pontos12=cId=>{const lim=iso(new Date(Date.now()-365*864e5));return S.multas.filter(m=>m.clienteId===cId&&(m.dataInfracao||"")>=lim).reduce((a,m)=>a+(+m.pontos||0),0)};
+function locNaData(vId,data){if(!vId||!data)return null;return S.locacoes.find(l=>l.veiculoId===vId&&l.inicio&&l.inicio<=data&&(!l.fim||l.status!=="encerrada"||l.fim>=data))||null}
+function addPeriod(s,freq,n){const d=pd(s);if(freq==="mensal"){const day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();d.setDate(Math.min(day,last))}else d.setDate(d.getDate()+n*(freq==="semanal"?7:15));return iso(d)}
+function locInfo(l){
+  const pagos=S.lancamentos.filter(t=>t.tipo==="receita"&&t.locacaoId===l.id&&t.categoria===MENS);
+  const total=pagos.reduce((a,t)=>a+(+t.valor||0),0);
+  const prox=l.inicio?addPeriod(l.inicio,l.frequencia||"mensal",pagos.length):null;
+  let st=null, abertas=0;
+  if(l.status!=="encerrada"&&prox){
+    const hoje=todayIso();while(abertas<300&&addPeriod(l.inicio,l.frequencia||"mensal",pagos.length+abertas)<hoje)abertas++;
+    const d=days(hoje,prox);
+    st=d<0?{txt:vencidoTxt(-d).replace(/^./,c=>c.toUpperCase()),cls:"bad",d}:d<=3?{txt:venceTxt(d),cls:"warn",d}:{txt:"Em dia",cls:"ok",d};
+  }
+  return{pagos:pagos.length,total,prox,st,abertas,devido:abertas*(+l.valor||0)};
+}
+const txOfMonth=ym=>S.lancamentos.filter(t=>ymOf(t.data)===ym);
+const sumT=(arr,tipo)=>arr.filter(t=>t.tipo===tipo).reduce((a,t)=>a+(+t.valor||0),0);
+
+/* ---------- ícones ---------- */
+const IC={
+  edit:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>',
+  inn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7 7 7-7"/></svg>',
+  out:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7-7 7 7"/></svg>',
+  wrench:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8V21h3.2l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.4-.4-.4-2.4z"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  wa:'<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.9 11.9 0 0 0 4.6 4c1.7.7 2.4.8 3.2.7a2.8 2.8 0 0 0 1.8-1.3 2.3 2.3 0 0 0 .2-1.3c-.1-.1-.2-.2-.5-.3z"/></svg>',
+  doc:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 13h6M9 17h4"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  sheet:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 9h16M4 15h16M10 3v18"/></svg>',
+  gauge:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8 8 0 1 1 16 0"/><path d="M12 18l4-6"/></svg>',
+  close:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  l:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
+  r:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
+};
+function plateHtml(v){const p=normPlate(v.placa)||"———";const moto=v.tipo==="moto";const txt=moto&&p.length===7?p.slice(0,3)+"<br>"+p.slice(3):esc(p);return '<div class="plate'+(moto?" moto":"")+'" aria-label="Placa '+esc(p)+'"><i>BRASIL</i><span>'+txt+'</span></div>'}
+const exChip=x=>x.exemplo?' <span class="chip ex">exemplo</span>':"";
+
+/* ---------- views ---------- */
+/* ---------- Dashboard: período selecionável ---------- */
+function addDays(s,n){const d=pd(s);d.setDate(d.getDate()+n);return iso(d)}
+function weekStart(s){const d=pd(s),w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);return iso(d)}
+function periodoDe(modo,ref){
+  if(modo==="semana"){const a=weekStart(ref);return{modo,ini:a,fim:addDays(a,6)}}
+  if(modo==="quinzena"){const d=pd(ref),y=d.getFullYear(),m=d.getMonth();return d.getDate()<=15?{modo,ini:iso(new Date(y,m,1)),fim:iso(new Date(y,m,15))}:{modo,ini:iso(new Date(y,m,16)),fim:iso(new Date(y,m+1,0))}}
+  if(modo==="mes"){const d=pd(ref);return{modo,ini:iso(new Date(d.getFullYear(),d.getMonth(),1)),fim:iso(new Date(d.getFullYear(),d.getMonth()+1,0))}}
+  return per;
+}
+let per=periodoDe("semana",todayIso());
+function shiftPer(dir){
+  if(per.modo==="semana")per=periodoDe("semana",addDays(per.ini,7*dir));
+  else if(per.modo==="quinzena")per=periodoDe("quinzena",dir>0?addDays(per.fim,1):addDays(per.ini,-1));
+  else if(per.modo==="mes")per=periodoDe("mes",dir>0?addDays(per.fim,1):addDays(per.ini,-1));
+  else{const n=days(per.ini,per.fim)+1;per={modo:"livre",ini:addDays(per.ini,n*dir),fim:addDays(per.fim,n*dir)}}
+}
+const perAnterior=p=>{const n=days(p.ini,p.fim)+1;return{ini:addDays(p.ini,-n),fim:addDays(p.ini,-1)}};
+const txEntre=(a,b)=>S.lancamentos.filter(t=>t.data&&t.data>=a&&t.data<=b);
+const MESC=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const DSEM=["dom","seg","ter","qua","qui","sex","sáb"];
+function perLabel(p){const a=pd(p.ini),b=pd(p.fim);
+  if(p.ini===p.fim)return a.getDate()+" de "+MESC[a.getMonth()]+" "+a.getFullYear();
+  return a.getDate()+(a.getMonth()!==b.getMonth()?" "+MESC[a.getMonth()]:"")+(a.getFullYear()!==b.getFullYear()?" "+a.getFullYear():"")+" a "+b.getDate()+" "+MESC[b.getMonth()]+" "+b.getFullYear()}
+const NOME_PER={semana:"semana",quinzena:"quinzena",mes:"mês",livre:"período"};
+function kfmt(v){const a=Math.abs(v);return (v<0?"−":"")+(a>=1000?(a/1000).toLocaleString("pt-BR",{maximumFractionDigits:a>=10000?0:1})+" mil":a.toLocaleString("pt-BR",{maximumFractionDigits:0}))}
+function niceStep(range,n){const raw=range/n||1,p=Math.pow(10,Math.floor(Math.log10(raw)));for(const m of [1,2,2.5,5,10])if(m*p>=raw)return m*p;return 10*p}
+
+function buckets(p){
+  const n=days(p.ini,p.fim)+1, out=[];
+  if(n<=31){for(let i=0;i<n;i++){const d=addDays(p.ini,i),dt=pd(d);out.push({a:d,b:d,lbl:n<=8?DSEM[dt.getDay()]+" "+dt.getDate():String(dt.getDate()),tip:DSEM[dt.getDay()]+", "+fd(d)})}}
+  else if(n<=124){let a=p.ini;while(a<=p.fim){const b0=addDays(weekStart(a),6),b=b0>p.fim?p.fim:b0;out.push({a,b,lbl:fd(a).slice(0,5),tip:fd(a).slice(0,5)+" a "+fd(b).slice(0,5)});a=addDays(b,1)}}
+  else{let a=p.ini;while(a<=p.fim){const d=pd(a),e=iso(new Date(d.getFullYear(),d.getMonth()+1,0)),b=e>p.fim?p.fim:e;out.push({a,b,lbl:MESC[d.getMonth()]+(d.getMonth()===0?" "+String(d.getFullYear()).slice(2):""),tip:MESC[d.getMonth()]+" "+d.getFullYear()});a=addDays(b,1)}}
+  out.forEach(k=>{const t=txEntre(k.a,k.b);k.e=sumT(t,"receita");k.s=sumT(t,"despesa")});
+  return out;
+}
+function chartW(){const m=$("#main");return Math.max(280,Math.min(928,(m?m.clientWidth:400)-32-30))}
+function barPath(x,y,w,h){if(h<=0.5)return"";const r=Math.min(4,w/2,h);return"M"+x+","+(y+h)+"V"+(y+r)+"Q"+x+","+y+" "+(x+r)+","+y+"H"+(x+w-r)+"Q"+(x+w)+","+y+" "+(x+w)+","+(y+r)+"V"+(y+h)+"Z"}
+function xLabels(bk,W,L,R){const slot=(W-L-R)/bk.length, every=Math.max(1,Math.ceil(46/slot));
+  return bk.map((k,i)=>(i%every===0||i===bk.length-1&&bk.length-1-i>=0&&(bk.length-1)%every>=every/2)?'<text x="'+(L+slot*(i+.5))+'" y="__H__" text-anchor="middle" class="ax">'+esc(k.lbl)+'</text>':"").join("")}
+
+function chartBars(bk){
+  const W=chartW(),H=210,L=46,R=8,T=12,B=26,ph=H-T-B;
+  const mx=Math.max(1,...bk.map(k=>Math.max(k.e,k.s))),st=niceStep(mx,4),top=Math.ceil(mx/st)*st;
+  const y=v=>T+ph-(v/top)*ph, slot=(W-L-R)/bk.length, bw=Math.max(2,Math.min(22,(slot*0.72-2)/2));
+  let g="";for(let v=0;v<=top+1e-9;v+=st)g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" class="'+(v===0?"base":"grid")+'"/><text x="'+(L-6)+'" y="'+(y(v)+4)+'" text-anchor="end" class="ax">'+kfmt(v)+'</text>';
+  let bars="",hits="";
+  bk.forEach((k,i)=>{const cx=L+slot*(i+.5);
+    bars+='<path class="b-in" d="'+barPath(cx-bw-1,y(k.e),bw,ph+T-y(k.e))+'"/><path class="b-out" d="'+barPath(cx+1,y(k.s),bw,ph+T-y(k.s))+'"/>';
+    hits+='<rect class="hit" x="'+(L+slot*i)+'" y="'+T+'" width="'+slot+'" height="'+ph+'" data-tip="'+esc('<b>'+k.tip+'</b><span><i class="sw in"></i>Entradas '+brl(k.e)+'</span><span><i class="sw out"></i>Saídas '+brl(k.s)+'</span><span>Saldo '+brl(k.e-k.s)+'</span>')+'"/>'});
+  return '<svg class="ch" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" aria-label="Entradas e saídas por '+(bk.length&&bk[0].a===bk[0].b?"dia":"período")+'">'+g+bars+xLabels(bk,W,L,R).replace(/__H__/g,H-8)+hits+'</svg>';
+}
+function chartSaldo(bk){
+  const W=chartW(),H=180,L=46,R=64,T=14,B=26,ph=H-T-B;let acc=0;const pts=bk.map(k=>acc+=k.e-k.s);
+  const lo=Math.min(0,...pts),hi=Math.max(0,...pts),st=niceStep((hi-lo)||1,4),a=Math.floor(lo/st)*st,b=Math.max(a+st,Math.ceil(hi/st)*st);
+  const y=v=>T+ph-((v-a)/(b-a))*ph, slot=(W-L-R)/bk.length, x=i=>L+slot*(i+.5);
+  let g="";for(let v=a;v<=b+1e-9;v+=st)g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" class="'+(Math.abs(v)<1e-9?"base":"grid")+'"/><text x="'+(L-6)+'" y="'+(y(v)+4)+'" text-anchor="end" class="ax">'+kfmt(v)+'</text>';
+  const line=pts.map((v,i)=>(i?"L":"M")+x(i)+","+y(v)).join(""), area=line+"L"+x(pts.length-1)+","+y(0)+"L"+x(0)+","+y(0)+"Z";
+  const last=pts[pts.length-1]||0, lx=x(pts.length-1), ly=y(last);
+  let hits="";bk.forEach((k,i)=>hits+='<rect class="hit" x="'+(L+slot*i)+'" y="'+T+'" width="'+slot+'" height="'+ph+'" data-x="'+x(i)+'" data-tip="'+esc('<b>Até '+k.tip+'</b><span>Saldo acumulado '+brl(pts[i])+'</span><span>No dia/período '+brl(k.e-k.s)+'</span>')+'"/>');
+  return '<svg class="ch" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" role="img" aria-label="Saldo acumulado no período">'+g+'<path d="'+area+'" class="sal-area"/><path d="'+line+'" class="sal-line"/><circle cx="'+lx+'" cy="'+ly+'" r="5" class="sal-end"/><text x="'+(lx+9)+'" y="'+(ly+4)+'" class="ax strong">'+kfmt(last)+'</text>'+xLabels(bk,W,L,R).replace(/__H__/g,H-8)+'<line class="xhair" x1="0" x2="0" y1="'+T+'" y2="'+(T+ph)+'" hidden/>'+hits+'</svg>';
+}
+function delta(cur,prev,invert){
+  if(!prev&&!cur)return '<small class="dl">sem movimento</small>';
+  if(!prev)return '<small class="dl">sem base anterior</small>';
+  const p=Math.round((cur-prev)/Math.abs(prev)*100), good=invert?p<=0:p>=0;
+  return '<small class="dl '+(p===0?"":good?"up":"down")+'">'+(p>0?"▲ ":p<0?"▼ ":"")+Math.abs(p)+'% vs '+NOME_PER[per.modo]+' anterior</small>';
+}
+
+function vPainel(){
+  const tx=txEntre(per.ini,per.fim), ent=sumT(tx,"receita"), sai=sumT(tx,"despesa"), bal=ent-sai;
+  const pa=perAnterior(per), txa=txEntre(pa.ini,pa.fim), entA=sumT(txa,"receita"), saiA=sumT(txa,"despesa");
+  const locs=S.locacoes.filter(l=>l.status!=="encerrada").map(l=>({l,i:locInfo(l)}));
+  const aReceber=locs.reduce((a,x)=>a+x.i.devido,0), atrasados=locs.filter(x=>x.i.abertas).length;
+  const st={alugado:0,disponivel:0,manutencao:0};S.veiculos.forEach(v=>st[veicStatus(v)]++);
+  const alerts=[];
+  locs.forEach(({l,i})=>{if(i.st&&i.st.cls!=="ok"){const c=byId("clientes",l.clienteId);alerts.push({cls:i.st.cls,html:'<b>'+esc(i.st.txt)+'</b> · '+esc(c?c.nome:"Cliente")+' — '+esc(veicLabel(byId("veiculos",l.veiculoId)))+'<div class="sub">'+(i.abertas?'<b style="color:var(--out)">'+i.abertas+' parcela'+(i.abertas===1?"":"s")+' em aberto · '+brl(i.devido)+'</b> · ':'')+'Vencimento: '+fd(i.prox)+' · '+brl(l.valor)+' por '+FREQ[l.frequencia||"mensal"]+'</div>',act:'<div class="actions" style="justify-content:flex-end">'+waBtn(l)+'<button class="btn sm" data-act="pagar" data-id="'+l.id+'">Registrar pagamento</button></div>'})}});
+  S.veiculos.forEach(v=>kmInfo(v).filter(k=>k.cls).forEach(k=>alerts.push({cls:k.cls,html:'<b>'+esc(k.txt)+'</b> · '+esc(veicLabel(v))+'<div class="sub">Km atual '+Number(v.km||0).toLocaleString("pt-BR")+' · prevista aos '+k.prox.toLocaleString("pt-BR")+' km</div>',act:'<button class="btn sm" data-act="manut" data-id="'+v.id+'">Lançar manutenção</button>'})));
+  S.clientes.forEach(c=>{const i=cnhInfo(c);if(i&&i.cls!=="ok")alerts.push({cls:i.cls,html:'<b>'+esc(i.txt)+'</b> · '+esc(c.nome)+'<div class="sub">CNH '+esc(c.cnhNumero||"")+' categoria '+esc(c.cnhCategoria||"—")+'</div>',act:'<button class="btn sm" data-act="edit-cliente" data-id="'+c.id+'">Atualizar</button>'})});
+  S.multas.forEach(m=>{const c=byId("clientes",m.clienteId),v=byId("veiculos",m.veiculoId),base=esc(infrTxt(m))+' · '+esc(v?v.placa:"")+(c?" · "+esc(c.nome):"");
+    const ii=indicInfo(m);if(ii)alerts.push({cls:ii.cls,html:'<b>'+esc(ii.txt)+'</b> · '+base+'<div class="sub">Prazo: '+fd(m.prazoIndicacao)+'</div>',act:'<button class="btn sm" data-act="edit-multa" data-id="'+m.id+'">Abrir multa</button>'});
+    const mi=multaInfo(m);if(mi.cls==="bad"||mi.cls==="warn")alerts.push({cls:mi.cls,html:'<b>Multa: '+esc(mi.txt)+'</b> · '+base+'<div class="sub">'+brl(m.valor)+(m.vencimento&&m.pagamento!=="paga"?" · vencimento "+fd(m.vencimento):"")+'</div>',act:'<button class="btn sm" data-act="edit-multa" data-id="'+m.id+'">Abrir multa</button>'})});
+  S.veiculos.filter(v=>veicStatus(v)==="manutencao").forEach(v=>alerts.push({cls:"warn",html:'<b>Em manutenção</b> · '+esc(veicLabel(v)),act:'<button class="btn sm" data-act="edit-veiculo" data-id="'+v.id+'">Abrir</button>'}));
+
+  const bk=buckets(per);
+  const cats={};tx.filter(t=>t.tipo==="despesa").forEach(t=>cats[t.categoria]=(cats[t.categoria]||0)+(+t.valor||0));
+  const catArr=Object.entries(cats).sort((a,b)=>b[1]-a[1]), catMax=catArr.length?catArr[0][1]:1;
+  const recs={};tx.filter(t=>t.tipo==="receita").forEach(t=>recs[t.categoria]=(recs[t.categoria]||0)+(+t.valor||0));
+  const recArr=Object.entries(recs).sort((a,b)=>b[1]-a[1]), recMax=recArr.length?recArr[0][1]:1;
+  const porV=S.veiculos.map(v=>{const t=tx.filter(x=>x.veiculoId===v.id);return{v,e:sumT(t,"receita"),s:sumT(t,"despesa")}}).filter(r=>r.e||r.s).sort((a,b)=>(b.e-b.s)-(a.e-a.s));
+  const recent=[...tx].sort((a,b)=>(b.data||"").localeCompare(a.data||"")||(b.criadoEm||0)-(a.criadoEm||0)).slice(0,8);
+  const hasEx=COLS.some(c=>S[c].some(x=>x.exemplo));
+  const barList=(arr,max,cls)=>'<div class="hbars">'+arr.map(([k,v])=>'<div class="hb"><span class="hb-l">'+esc(k)+'</span><span class="hb-track"><i class="'+cls+'" style="width:'+Math.max(2,v/max*100)+'%"></i></span><span class="hb-v num">'+brl(v)+'</span></div>').join("")+'</div>';
+
+  return (hasEx?'<div class="banner">Os registros marcados como <b>exemplo</b> mostram como o app funciona. <button class="btn sm" data-act="clear-ex" style="margin-left:6px">Apagar exemplos</button></div>':"")+
+  '<section class="sec perbar" aria-label="Período">'+
+    '<div class="seg" role="radiogroup" aria-label="Tipo de período">'+[["semana","Semana"],["quinzena","Quinzena"],["mes","Mês"],["livre","Escolher datas"]].map(([k,t])=>'<label><input type="radio" name="pmodo" value="'+k+'" data-act="pmodo"'+(per.modo===k?" checked":"")+'><span>'+t+'</span></label>').join("")+'</div>'+
+    '<div class="perrow"><button class="icon-btn" data-act="per-prev" aria-label="Período anterior">'+IC.l+'</button><div class="perdates"><label>De <input type="date" id="per-ini" value="'+per.ini+'"></label><label>Até <input type="date" id="per-fim" value="'+per.fim+'"></label></div><button class="icon-btn" data-act="per-next" aria-label="Próximo período">'+IC.r+'</button></div>'+
+    '<div class="perlabel"><b>'+esc(perLabel(per))+'</b>'+(per.ini<=todayIso()&&todayIso()<=per.fim?'':' <button class="btn sm" data-act="per-hoje">Voltar para hoje</button>')+'</div>'+
+  '</section>'+
+  '<section class="sec"><div class="kpis k4">'+
+    '<div class="kpi"><span class="eyebrow"><i class="sw in"></i>Entradas</span><b class="num">'+brl(ent)+'</b>'+delta(ent,entA)+'</div>'+
+    '<div class="kpi"><span class="eyebrow"><i class="sw out"></i>Saídas</span><b class="num">'+brl(sai)+'</b>'+delta(sai,saiA,true)+'</div>'+
+    '<div class="kpi"><span class="eyebrow">Saldo do período</span><b class="num" style="color:var('+(bal>=0?"--in":"--out")+')">'+brl(bal)+'</b>'+delta(bal,entA-saiA)+'</div>'+
+    '<div class="kpi"><span class="eyebrow">A receber hoje</span><b class="num"'+(aReceber?' style="color:var(--out)"':"")+'>'+brl(aReceber)+'</b><small class="dl">'+(atrasados?atrasados+' locaç'+(atrasados===1?"ão":"ões")+' com atraso':'nenhuma parcela em atraso')+'</small></div>'+
+  '</div>'+
+  '<div class="fleet"><span class="chip">'+S.veiculos.length+' veículo'+(S.veiculos.length===1?"":"s")+'</span><span class="chip ok"><span class="dot"></span>'+st.alugado+' alugado'+(st.alugado===1?"":"s")+'</span><span class="chip"><span class="dot"></span>'+st.disponivel+' disponíve'+(st.disponivel===1?"l":"is")+'</span>'+(st.manutencao?'<span class="chip warn"><span class="dot"></span>'+st.manutencao+' em manutenção</span>':"")+'</div></section>'+
+  '<section class="sec"><div class="sec-h"><h2>Entradas e saídas</h2><div class="legend"><span><i class="sw in"></i>Entradas</span><span><i class="sw out"></i>Saídas</span></div></div>'+
+  '<div class="panel chartbox">'+chartBars(bk)+'<div class="tip" hidden></div>'+
+  '<details class="tbl"><summary>Ver em tabela</summary><div class="tbl-wrap"><table><thead><tr><th>'+(bk.length&&bk[0].a===bk[0].b?"Dia":"Período")+'</th><th class="r">Entradas</th><th class="r">Saídas</th><th class="r">Saldo</th></tr></thead><tbody>'+bk.map(k=>'<tr><td>'+esc(k.tip)+'</td><td class="r num">'+brl(k.e)+'</td><td class="r num">'+brl(k.s)+'</td><td class="r num">'+brl(k.e-k.s)+'</td></tr>').join("")+'</tbody></table></div></details></div></section>'+
+  '<section class="sec"><div class="sec-h"><h2>Saldo acumulado</h2><span class="muted">soma dia a dia no período</span></div><div class="panel chartbox">'+chartSaldo(bk)+'<div class="tip" hidden></div></div></section>'+
+  '<div class="two">'+
+  '<section class="sec"><div class="sec-h"><h2>De onde veio</h2><span class="muted num">'+brl(ent)+'</span></div><div class="panel pad">'+(recArr.length?barList(recArr,recMax,"in"):'<p class="muted">Nenhuma entrada no período.</p>')+'</div></section>'+
+  '<section class="sec"><div class="sec-h"><h2>Para onde foi</h2><span class="muted num">'+brl(sai)+'</span></div><div class="panel pad">'+(catArr.length?barList(catArr,catMax,"out"):'<p class="muted">Nenhuma saída no período.</p>')+'</div></section>'+
+  '</div>'+
+  (porV.length?'<section class="sec"><div class="sec-h"><h2>Resultado por veículo</h2></div><div class="panel tbl-wrap"><table><thead><tr><th>Veículo</th><th class="r">Entradas</th><th class="r">Saídas</th><th class="r">Resultado</th></tr></thead><tbody>'+porV.map(r=>'<tr><td>'+esc(veicLabel(r.v))+'</td><td class="r num">'+brl(r.e)+'</td><td class="r num">'+brl(r.s)+'</td><td class="r num"><b style="color:var('+(r.e-r.s>=0?"--in":"--out")+')">'+brl(r.e-r.s)+'</b></td></tr>').join("")+'</tbody></table></div></section>':"")+
+  '<section class="sec"><div class="sec-h"><h2>Precisa de atenção</h2><span class="muted">'+alerts.length+'</span></div>'+
+  (alerts.length?'<div class="list">'+alerts.map(a=>'<div class="alert '+a.cls+'"><div class="grow" style="flex:1;min-width:0">'+a.html+'</div>'+a.act+'</div>').join("")+'</div>':'<div class="empty">Nenhum pagamento atrasado, CNH vencendo ou veículo parado.</div>')+'</section>'+
+  '<section class="sec"><div class="sec-h"><h2>Lançamentos do período</h2><div class="actions"><button class="btn sm" data-act="export-per">'+IC.sheet+'Exportar planilha</button><button class="btn sm" data-view-go="caixa">Ver caixa</button></div></div>'+
+  (recent.length?'<div class="panel">'+recent.map(txRow).join("")+'</div>':'<div class="empty">Nenhum lançamento entre '+fd(per.ini)+' e '+fd(per.fim)+'.<button class="btn pri" data-act="new-receita">Lançar receita</button></div>')+'</section>';
+}
+function monthBar(){return '<div class="sec"><div class="monthbar"><button class="icon-btn" data-act="mes-prev" aria-label="Mês anterior">'+IC.l+'</button><b>'+esc(ymLabel(mes))+'</b><button class="icon-btn" data-act="mes-next" aria-label="Próximo mês">'+IC.r+'</button></div></div>'}
+
+function txRow(t){
+  const v=byId("veiculos",t.veiculoId), c=byId("clientes",t.clienteId), isIn=t.tipo==="receita";
+  const det=[fd(t.data),v?v.placa:"",c?c.nome.split(" ")[0]:"",t.formaPagamento].filter(Boolean).join(" · ");
+  const extra=t.categoria==="Manutenção"&&(t.pecas||t.maoDeObra)?'<div class="sub">Peças '+brl(t.pecas)+' · Mão de obra '+brl(t.maoDeObra)+'</div>':"";
+  return '<div class="tx"><div class="tx-ic '+(isIn?"in":"out")+'">'+(t.categoria==="Manutenção"?IC.wrench:isIn?IC.inn:IC.out)+'</div><div style="min-width:0;cursor:pointer" data-act="edit-lanc" data-id="'+t.id+'"><div class="t ellip">'+esc(t.descricao||t.categoria)+exChip(t)+'</div><div class="sub ellip">'+esc(t.descricao?t.categoria+" · "+det:det)+'</div>'+extra+'</div><div style="display:grid;justify-items:end;gap:2px"><span class="money '+(isIn?"in":"out")+'">'+(isIn?"+ ":"− ")+brl(t.valor)+'</span><div style="display:flex;gap:2px">'+(isIn?'<button class="icon-btn" data-act="recibo" data-id="'+t.id+'" aria-label="Recibo" title="Recibo">'+IC.doc+'</button>':'')+'<button class="icon-btn" data-act="edit-lanc" data-id="'+t.id+'" aria-label="Editar lançamento">'+IC.edit+'</button>'+(pendDel===t.id?'<button class="btn sm danger" data-act="del-lanc" data-id="'+t.id+'" style="border-color:var(--out)">Confirmar exclusão</button>':'<button class="icon-btn" data-act="del-lanc" data-id="'+t.id+'" aria-label="Excluir lançamento">'+IC.trash+'</button>')+'</div></div></div>';
+}
+
+function vVeiculos(){
+  return '<section class="sec"><div class="sec-h"><h2>Veículos</h2><button class="btn pri" data-act="new-veiculo">+ Cadastrar veículo</button></div>'+
+  (S.veiculos.length?'<input class="search" id="q-veiculos" type="search" placeholder="Buscar por placa, modelo ou cor" value="'+esc(q.veiculos)+'"><div class="list" id="list">'+listVeiculos()+'</div>':'<div class="empty"><b>Nenhum veículo cadastrado</b>Cadastre carros e motos com placa, chassi, motor e cor.<button class="btn pri" data-act="new-veiculo">Cadastrar primeiro veículo</button></div>')+'</section>';
+}
+function listVeiculos(){
+  const s=q.veiculos.toLowerCase();
+  const arr=S.veiculos.filter(v=>!s||[v.placa,v.marca,v.modelo,v.cor].join(" ").toLowerCase().includes(s)).sort((a,b)=>(a.placa||"").localeCompare(b.placa||""));
+  if(!arr.length)return '<div class="empty">Nenhum veículo encontrado para “'+esc(q.veiculos)+'”.</div>';
+  return arr.map(v=>{
+    const st=STATUS_TXT[veicStatus(v)], l=locAtiva(v.id), c=l&&byId("clientes",l.clienteId);
+    const tx=S.lancamentos.filter(t=>t.veiculoId===v.id), rec=sumT(tx,"receita"), desp=sumT(tx,"despesa");
+    return '<article class="card"><div class="row">'+plateHtml(v)+'<div class="grow"><div class="t ellip">'+esc([v.marca,v.modelo].filter(Boolean).join(" ")||"Sem modelo")+exChip(v)+'</div><div class="sub ellip">'+esc([v.tipo==="moto"?"Moto":"Carro",[v.anoFabricacao,v.anoModelo].filter(Boolean).join("/"),v.cor].filter(Boolean).join(" · "))+'</div></div><span class="chip '+st[1]+'"><span class="dot"></span>'+st[0]+'</span></div>'+
+    (c?'<div class="sub">Com <b style="color:var(--fg)">'+esc(c.nome)+'</b> desde '+fd(l.inicio)+'</div>':"")+
+    '<div class="sub num">Recebido '+brl(rec)+' · Gasto '+brl(desp)+' · <b style="color:var('+(rec-desp>=0?"--in":"--out")+')">Resultado '+brl(rec-desp)+'</b></div>'+
+    (()=>{const ki=kmInfo(v);return (v.km!=null||ki.length)?'<div class="fleet"><span class="chip">'+(v.km!=null?Number(v.km).toLocaleString("pt-BR")+" km":"km não informado")+'</span>'+ki.map(k=>'<span class="chip '+k.cls+'">'+esc(k.txt)+'</span>').join("")+'</div>':""})()+
+    '<div class="actions"><button class="btn sm" data-act="edit-veiculo" data-id="'+v.id+'">'+IC.edit+'Editar</button><button class="btn sm" data-act="km" data-id="'+v.id+'">'+IC.gauge+'Atualizar km</button><button class="btn sm" data-act="manut" data-id="'+v.id+'">'+IC.wrench+'Lançar manutenção</button></div></article>';
+  }).join("");
+}
+
+function vClientes(){
+  return '<section class="sec"><div class="sec-h"><h2>Clientes e motoristas</h2><button class="btn pri" data-act="new-cliente">+ Cadastrar cliente</button></div>'+
+  (S.clientes.length?'<input class="search" id="q-clientes" type="search" placeholder="Buscar por nome, CPF ou telefone" value="'+esc(q.clientes)+'"><div class="list" id="list">'+listClientes()+'</div>':'<div class="empty"><b>Nenhum cliente cadastrado</b>Cadastre quem aluga seus veículos, com documentos, endereço e CNH.<button class="btn pri" data-act="new-cliente">Cadastrar primeiro cliente</button></div>')+'</section>';
+}
+function listClientes(){
+  const s=q.clientes.toLowerCase(), sd=digits(q.clientes);
+  const arr=S.clientes.filter(c=>!s||(c.nome||"").toLowerCase().includes(s)||(sd&&(digits(c.cpf).includes(sd)||digits(c.telefone).includes(sd)))).sort((a,b)=>(a.nome||"").localeCompare(b.nome||""));
+  if(!arr.length)return '<div class="empty">Nenhum cliente encontrado para “'+esc(q.clientes)+'”.</div>';
+  return arr.map(c=>{
+    const i=cnhInfo(c), l=S.locacoes.find(x=>x.clienteId===c.id&&x.status!=="encerrada"), v=l&&byId("veiculos",l.veiculoId);
+    return '<article class="card"><div class="row"><div class="grow"><div class="t ellip">'+esc(c.nome)+exChip(c)+'</div><div class="sub ellip">'+esc([c.cpf?"CPF "+fmtCpf(c.cpf):"",c.telefone].filter(Boolean).join(" · ")||"Sem documento informado")+'</div></div>'+(i?'<span class="chip '+i.cls+'">'+esc(i.cls==="ok"?"CNH "+(c.cnhCategoria||"")+" válida":i.txt)+'</span>':'<span class="chip">Sem CNH</span>')+'</div>'+
+    (v?'<div class="sub">Está com '+esc(veicLabel(v))+'</div>':"")+
+    (()=>{const ms=S.multas.filter(m=>m.clienteId===c.id);if(!ms.length)return"";const pts=pontos12(c.id),ab=ms.filter(m=>m.pagamento!=="paga"||m.cobranca==="a_cobrar").length;return '<div class="sub">'+ms.length+' multa'+(ms.length===1?"":"s")+' · <b style="color:var('+(pts>=20?"--out":"--fg")+')">'+pts+' pontos em 12 meses</b>'+(ab?' · '+ab+' pendente'+(ab===1?"":"s"):"")+'</div>'})()+
+    '<div class="sub">'+esc([c.cidade,c.uf].filter(Boolean).join(" / "))+(c.cnhNumero?" · CNH "+esc(c.cnhNumero)+" ("+esc(c.cnhCategoria||"—")+") até "+fd(c.cnhValidade):"")+'</div>'+
+    '<div class="actions"><button class="btn sm" data-act="edit-cliente" data-id="'+c.id+'">'+IC.edit+'Ver / editar</button></div></article>';
+  }).join("");
+}
+
+function vLocacoes(){
+  const at=S.locacoes.filter(l=>l.status!=="encerrada"), enc=S.locacoes.filter(l=>l.status==="encerrada");
+  const card=l=>{const c=byId("clientes",l.clienteId), v=byId("veiculos",l.veiculoId), i=locInfo(l);
+    return '<article class="card"><div class="row">'+(v?plateHtml(v):"")+'<div class="grow"><div class="t ellip">'+esc(c?c.nome:"Cliente removido")+exChip(l)+'</div><div class="sub ellip">'+esc(v?[v.marca,v.modelo].filter(Boolean).join(" "):"Veículo removido")+'</div></div>'+(i.st?'<span class="chip '+i.st.cls+'">'+esc(i.st.txt)+'</span>':'<span class="chip">Encerrada</span>')+'</div>'+
+    '<div class="sub num"><span class="chip">'+({semanal:"Semanal",quinzenal:"Quinzenal",mensal:"Mensal"}[l.frequencia||"mensal"])+'</span> <b style="color:var(--fg)">'+brl(l.valor)+'</b> por '+FREQ[l.frequencia||"mensal"]+' · desde '+fd(l.inicio)+(l.status==="encerrada"&&l.fim?" até "+fd(l.fim):"")+(l.caucao?" · caução "+brl(l.caucao):"")+'</div>'+
+    '<div class="sub num">'+i.pagos+' pagamento'+(i.pagos===1?"":"s")+' · total '+brl(i.total)+(l.status!=="encerrada"?' · próximo vencimento <b style="color:var(--fg)">'+fd(i.prox)+'</b>':"")+'</div>'+(i.abertas?'<div class="sub"><b style="color:var(--out)">'+i.abertas+' parcela'+(i.abertas===1?"":"s")+' em aberto · '+brl(i.devido)+' a receber</b></div>':"")+
+    '<div class="actions">'+(l.status!=="encerrada"?'<button class="btn sm pri" data-act="pagar" data-id="'+l.id+'">Registrar pagamento</button>'+waBtn(l):"")+'<button class="btn sm" data-act="contrato" data-id="'+l.id+'">'+IC.doc+'Contrato PDF</button>'+'<button class="btn sm" data-act="edit-locacao" data-id="'+l.id+'">'+IC.edit+'Editar</button></div></article>'};
+  const canNew=S.veiculos.length&&S.clientes.length;
+  return '<section class="sec"><div class="sec-h"><h2>Locações ativas</h2><button class="btn pri" data-act="new-locacao">+ Nova locação</button></div>'+
+  (at.length?'<div class="list">'+at.map(card).join("")+'</div>':'<div class="empty"><b>Nenhuma locação ativa</b>'+(canNew?'Ligue um cliente a um veículo, com valor e frequência de pagamento, para acompanhar quem está em dia.<button class="btn pri" data-act="new-locacao">Criar locação</button>':'Primeiro cadastre pelo menos um veículo e um cliente.')+'</div>')+'</section>'+
+  (enc.length?'<section class="sec"><div class="sec-h"><h2>Encerradas</h2></div><div class="list">'+enc.map(card).join("")+'</div></section>':"");
+}
+
+function vCaixa(){
+  let tx=txOfMonth(mes);
+  const ent=sumT(tx,"receita"), sai=sumT(tx,"despesa");
+  const man=tx.filter(t=>t.categoria==="Manutenção"), pecas=man.reduce((a,t)=>a+(+t.pecas||0),0), mao=man.reduce((a,t)=>a+(+t.maoDeObra||0),0);
+  const cats={};tx.filter(t=>t.tipo==="despesa").forEach(t=>cats[t.categoria]=(cats[t.categoria]||0)+(+t.valor||0));
+  const porV=S.veiculos.map(v=>{const t=tx.filter(x=>x.veiculoId===v.id);return{v,e:sumT(t,"receita"),s:sumT(t,"despesa")}}).filter(r=>r.e||r.s).sort((a,b)=>(b.e-b.s)-(a.e-a.s));
+  const list=tx.filter(t=>filtroTipo==="todos"||t.tipo===filtroTipo).sort((a,b)=>(b.data||"").localeCompare(a.data||"")||(b.criadoEm||0)-(a.criadoEm||0));
+  return monthBar()+
+  '<section class="sec"><div class="kpis"><div class="kpi in"><span class="eyebrow">Entradas</span><b class="num">'+brl(ent)+'</b></div><div class="kpi out"><span class="eyebrow">Saídas</span><b class="num">'+brl(sai)+'</b></div><div class="kpi bal"><span class="eyebrow">Saldo</span><b class="num" style="color:var('+(ent-sai>=0?"--in":"--out")+')">'+brl(ent-sai)+'</b></div></div>'+
+  '<div class="actions"><button class="btn pri" data-act="new-receita">'+IC.inn.replace("<svg",'<svg width="16" height="16"')+'Nova receita</button><button class="btn" data-act="new-despesa">'+IC.out.replace("<svg",'<svg width="16" height="16"')+'Nova despesa</button><button class="btn" data-act="manut">'+IC.wrench.replace("<svg",'<svg width="16" height="16"')+'Manutenção</button><button class="btn" data-act="export-caixa">'+IC.sheet+'Exportar planilha</button></div></section>'+
+  '<section class="sec"><div class="sec-h"><h2>Lançamentos</h2><div class="seg" role="group" aria-label="Filtrar">'+[["todos","Todos"],["receita","Entradas"],["despesa","Saídas"]].map(([k,t])=>'<label><input type="radio" name="ft" value="'+k+'" data-act="filtro"'+(filtroTipo===k?" checked":"")+'><span>'+t+'</span></label>').join("")+'</div></div>'+
+  (list.length?'<div class="panel">'+list.map(txRow).join("")+'</div>':'<div class="empty">Nenhum lançamento em '+esc(ymLabel(mes))+'.</div>')+'</section>'+
+  (sai?'<section class="sec"><div class="sec-h"><h2>Para onde foi o dinheiro</h2></div><div class="panel tbl-wrap"><table><tbody>'+Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td class="r num">'+brl(v)+'</td><td class="r num muted">'+Math.round(v/sai*100)+'%</td></tr>'+(k==="Manutenção"?'<tr><td class="muted">&nbsp;&nbsp;↳ Peças</td><td class="r num muted">'+brl(pecas)+'</td><td></td></tr><tr><td class="muted">&nbsp;&nbsp;↳ Mão de obra</td><td class="r num muted">'+brl(mao)+'</td><td></td></tr>':"")).join("")+'</tbody></table></div></section>':"")+
+  (porV.length?'<section class="sec"><div class="sec-h"><h2>Resultado por veículo</h2></div><div class="panel tbl-wrap"><table><thead><tr><th>Veículo</th><th class="r">Entradas</th><th class="r">Saídas</th><th class="r">Resultado</th></tr></thead><tbody>'+porV.map(r=>'<tr><td>'+esc(veicLabel(r.v))+'</td><td class="r num money in">'+brl(r.e)+'</td><td class="r num money out">'+brl(r.s)+'</td><td class="r num"><b style="color:var('+(r.e-r.s>=0?"--in":"--out")+')">'+brl(r.e-r.s)+'</b></td></tr>').join("")+'</tbody></table></div></section>':"");
+}
+
+const infrTxt=m=>m.infracao==="outra"||!infrById(m.infracao)?(m.descricaoInfracao||"Infração"):infrById(m.infracao)[1];
+function vMultas(){
+  const ab=S.multas.filter(m=>m.pagamento!=="paga"), cobrar=S.multas.filter(m=>m.pagamento==="paga"&&m.cobranca==="a_cobrar");
+  const card=m=>{const c=byId("clientes",m.clienteId),v=byId("veiculos",m.veiculoId),mi=multaInfo(m),ii=indicInfo(m),g=GRAV[m.gravidade];
+    return '<article class="card"><div class="row">'+(v?plateHtml(v):"")+'<div class="grow"><div class="t">'+esc(infrTxt(m))+exChip(m)+'</div><div class="sub">'+esc([m.artigo,m.codigo?"cód. "+m.codigo:"",g?g.t+" · "+(m.pontos||g.pts)+" pts":""].filter(Boolean).join(" · "))+'</div></div><span class="chip '+mi.cls+'">'+esc(mi.txt)+'</span></div>'+
+    '<div class="sub">Condutor: <b style="color:var(--fg)">'+esc(c?c.nome:"não informado")+'</b>'+(m.condutorIndicado?' · indicado ao órgão':ii?' · <span style="color:var('+(ii.cls==="bad"?"--out":"--warn")+')">'+esc(ii.txt)+'</span>':"")+'</div>'+
+    '<div class="sub num">'+fd(m.dataInfracao)+(m.hora?" às "+esc(m.hora):"")+(m.local?" · "+esc(m.local):"")+(m.orgao?" · "+esc(m.orgao):"")+'</div>'+
+    '<div class="sub num"><b style="color:var(--fg)">'+brl(m.valor)+'</b>'+(m.valorDesconto?' · '+brl(m.valorDesconto)+' com desconto':"")+(m.vencimento?' · vence '+fd(m.vencimento):"")+(m.pagamento==="paga"?' · pago '+brl(m.valorPago||m.valor)+' em '+fd(m.dataPagamento):"")+'</div>'+
+    '<div class="actions"><button class="btn sm" data-act="edit-multa" data-id="'+m.id+'">'+IC.edit+'Ver / editar</button>'+(m.clienteId?'<button class="btn sm" data-act="indicacao" data-id="'+m.id+'">'+IC.doc+'Indicação de condutor PDF</button>':"")+'</div></article>'};
+  const list=[...S.multas].sort((a,b)=>(b.dataInfracao||"").localeCompare(a.dataInfracao||""));
+  return '<section class="sec"><div class="sec-h"><h2>Multas</h2><button class="btn pri" data-act="new-multa">+ Lançar multa</button></div>'+
+  (S.multas.length?'<div class="kpis"><div class="kpi out"><span class="eyebrow">Em aberto</span><b class="num">'+brl(ab.reduce((a,m)=>a+(+m.valor||0),0))+'</b></div><div class="kpi"><span class="eyebrow">A cobrar dos condutores</span><b class="num">'+brl(cobrar.reduce((a,m)=>a+(+m.valorPago||+m.valor||0),0))+'</b></div><div class="kpi bal"><span class="eyebrow">Multas registradas</span><b class="num">'+S.multas.length+'</b></div></div><div class="list">'+list.map(card).join("")+'</div>'
+  :'<div class="empty"><b>Nenhuma multa registrada</b>Lance a multa com o veículo e a data da infração: o app mostra quem estava com o veículo para você atrelar ao condutor.<button class="btn pri" data-act="new-multa">Lançar primeira multa</button></div>')+'</section>';
+}
+const VIEWS={painel:vPainel,veiculos:vVeiculos,clientes:vClientes,locacoes:vLocacoes,multas:vMultas,caixa:vCaixa};
+
+function render(){
+  if(!VIEWS[view])view="painel";
+  let pre="";
+  pre=typeof bannerAcesso==="function"?bannerAcesso():"";if(dbState==="none")pre+='';
+  else if(dbState==="slow")pre='<div class="banner">Não consegui falar com o banco de dados ainda. Verifique sua conexão; os dados aparecem assim que ele responder.</div>';
+  else if(dbState==="error")pre='<div class="banner">A conexão com o banco de dados caiu. Recarregue a página para continuar.</div>';
+  $("#main").innerHTML=pre+VIEWS[view]();
+  document.querySelectorAll("#nav button").forEach(b=>{if(b.dataset.view===view)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
+  $("#sync").textContent=dbState==="ok"?(typeof EMPRESA!=="undefined"&&EMPRESA?EMPRESA.nome:"Dados salvos na nuvem"):dbState==="error"?"Sem conexão":"Carregando…";
+}
+function go(v){view=v;try{localStorage.setItem("loc_view",v)}catch(e){}render();window.scrollTo(0,0)}
+
+/* ---------- formulários ---------- */
+function F(label,name,val,type,extra){type=type||"text";extra=extra||"";
+  if(type==="textarea")return '<label class="f'+(extra.includes("full")?" full":"")+'">'+label+'<textarea id="f-'+name+'" name="'+name+'">'+esc(val)+'</textarea></label>';
+  return '<label class="f'+(extra.includes("full")?" full":"")+'">'+label+'<input id="f-'+name+'" name="'+name+'" type="'+type+'" value="'+esc(val??"")+'" '+extra.replace("full","")+'></label>'}
+function Sel(label,name,val,opts,extra){extra=extra||"";return '<label class="f'+(extra.includes("full")?" full":"")+'">'+label+'<select id="f-'+name+'" name="'+name+'">'+opts.map(o=>{const[v,t]=Array.isArray(o)?o:[o,o];return '<option value="'+esc(v)+'"'+(String(v)===String(val??"")?" selected":"")+'>'+esc(t)+'</option>'}).join("")+'</select></label>'}
+function Seg(name,val,opts){return '<div class="seg full" role="radiogroup">'+opts.map(([v,t])=>'<label><input type="radio" name="'+name+'" value="'+v+'"'+(val===v?" checked":"")+'><span>'+t+'</span></label>').join("")+'</div>'}
+
+let sheet=null;
+function openSheet(title,body,{kind,id,col}){
+  sheet={kind,id,col,confirmDel:false};
+  $("#sheet-root").innerHTML='<div class="sheet-bg" data-act="close-bg"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><div class="sheet-h"><h2 id="sheet-title">'+esc(title)+'</h2><button class="icon-btn" data-act="close" aria-label="Fechar">'+IC.close+'</button></div><form id="frm" novalidate>'+body+
+  '<div class="form-foot">'+(id?'<button type="button" class="btn danger" data-act="del">Excluir</button>':"")+'<div class="r"><button type="button" class="btn" data-act="close">Cancelar</button><button type="submit" class="btn pri"'+(readOnly||dbState==="none"?" disabled":"")+'>Salvar</button></div></div></form></div></div>';
+  document.body.style.overflow="hidden";
+  const first=$("#frm input:not([type=radio]),#frm select");if(first&&window.innerWidth>700)first.focus();
+  wireLive();
+}
+function closeSheet(){$("#sheet-root").innerHTML="";sheet=null;document.body.style.overflow=""}
+
+function formVeiculo(v){v=v||{tipo:"carro",status:"disponivel"};
+  openSheet(v.id?"Editar veículo":"Cadastrar veículo",
+  '<fieldset>'+Seg("tipo",v.tipo||"carro",[["carro","Carro"],["moto","Moto"]])+
+  '<div class="grid">'+F("Placa","placa",v.placa,"text",'autocapitalize="characters" maxlength="8" placeholder="ABC1D23" required')+Sel("Situação","status",v.status||"disponivel",[["disponivel","Disponível"],["manutencao","Em manutenção"]])+
+  '<div class="hint full" id="h-placa"></div>'+
+  '<div class="note full">A consulta automática pela placa precisa de um serviço pago de dados veiculares, que ainda não está ligado. Preencha os dados do documento (CRLV); ao digitar o chassi, o app já reconhece a marca e o ano-modelo.</div></div></fieldset>'+
+  '<fieldset><legend>Dados do veículo</legend><div class="grid">'+F("Marca","marca",v.marca,"text",'placeholder="Honda"')+F("Modelo","modelo",v.modelo,"text",'placeholder="CG 160 Fan"')+
+  F("Ano fabricação","anoFabricacao",v.anoFabricacao,"number",'inputmode="numeric" min="1950" max="2035"')+F("Ano modelo","anoModelo",v.anoModelo,"number",'inputmode="numeric" min="1950" max="2035"')+
+  F("Cor","cor",v.cor,"text",'placeholder="Prata"')+F("Quilometragem","km",v.km,"number",'inputmode="numeric" min="0"')+
+  F("Chassi","chassi",v.chassi,"text",'autocapitalize="characters" maxlength="17" class="full"')+'<div class="hint full" id="h-chassi"></div>'+
+  F("Número do motor","motor",v.motor,"text",'autocapitalize="characters"')+F("Renavam","renavam",v.renavam,"text",'inputmode="numeric" maxlength="11"')+
+  F("Observações","obs",v.obs,"textarea","full")+'</div></fieldset>'+
+  '<fieldset><legend>Manutenção por quilometragem</legend><div class="grid">'+F("Trocar óleo a cada (km)","oleoIntervalo",v.oleoIntervalo??(v.tipo==="moto"?1000:10000),"number",'inputmode="numeric" min="0"')+F("Km da última troca de óleo","oleoUltimaKm",v.oleoUltimaKm,"number",'inputmode="numeric" min="0"')+
+  F("Revisão a cada (km)","revIntervalo",v.revIntervalo??(v.tipo==="moto"?6000:10000),"number",'inputmode="numeric" min="0"')+F("Km da última revisão","revUltimaKm",v.revUltimaKm,"number",'inputmode="numeric" min="0"')+
+  '<div class="note full">Ajuste os intervalos ao manual do fabricante. O app avisa quando faltar pouco e quando passar do km.</div></div></fieldset>',{kind:"veiculo",id:v.id,col:"veiculos"});
+}
+function formCliente(c){c=c||{};
+  openSheet(c.id?"Cliente / motorista":"Cadastrar cliente",
+  '<fieldset><legend>Dados pessoais</legend><div class="grid">'+F("Nome completo","nome",c.nome,"text",'autocomplete="off" class="full" required')+
+  F("CPF","cpf",c.cpf?fmtCpf(c.cpf):"","text",'inputmode="numeric" maxlength="14" placeholder="000.000.000-00"')+F("Data de nascimento","nascimento",c.nascimento,"date")+'<div class="hint full" id="h-cpf"></div>'+
+  F("RG","rg",c.rg,"text")+F("Órgão emissor / UF","rgOrgao",c.rgOrgao,"text",'placeholder="SSP/SP"')+
+  F("Telefone / WhatsApp","telefone",c.telefone,"tel",'placeholder="(11) 90000-0000"')+F("E-mail","email",c.email,"email")+'</div></fieldset>'+
+  '<fieldset><legend>Endereço</legend><div class="grid g3">'+F("CEP","cep",c.cep,"text",'inputmode="numeric" maxlength="9"')+F("Rua / avenida","logradouro",c.logradouro,"text",'class="full"')+F("Número","numero",c.numero,"text")+F("Complemento","complemento",c.complemento,"text")+F("Bairro","bairro",c.bairro,"text")+F("Cidade","cidade",c.cidade,"text")+Sel("UF","uf",c.uf||"",[["","—"],...UFS])+'</div></fieldset>'+
+  '<fieldset><legend>Carteira de motorista (CNH)</legend><div class="grid">'+F("Nº de registro da CNH","cnhNumero",c.cnhNumero,"text",'inputmode="numeric" maxlength="11"')+Sel("Categoria","cnhCategoria",c.cnhCategoria||"",[["","—"],...CNH_CAT])+
+  F("Validade","cnhValidade",c.cnhValidade,"date")+F("1ª habilitação","cnhPrimeira",c.cnhPrimeira,"date")+'<div class="hint full" id="h-cnh"></div>'+
+  '<label class="f full" style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input type="checkbox" name="ear" id="f-ear" style="width:auto"'+(c.ear?" checked":"")+'> Tem EAR (exerce atividade remunerada) na CNH</label>'+
+  F("Observações","obs",c.obs,"textarea","full")+'</div></fieldset>',{kind:"cliente",id:c.id,col:"clientes"});
+}
+function formLocacao(l){l=l||{frequencia:"semanal",inicio:todayIso(),status:"ativa"};
+  const vs=S.veiculos.filter(v=>v.id===l.veiculoId||!locAtiva(v.id));
+  openSheet(l.id?"Editar locação":"Nova locação",
+  '<fieldset><div class="grid">'+Sel("Cliente","clienteId",l.clienteId,[["","Escolha o cliente"],...S.clientes.map(c=>[c.id,c.nome])],"full")+
+  Sel("Veículo","veiculoId",l.veiculoId,[["",vs.length?"Escolha o veículo":"Nenhum veículo disponível"],...vs.map(v=>[v.id,veicLabel(v)])],"full")+
+  '<div class="full" style="display:grid;gap:6px"><span class="hint" style="font-weight:600;font-size:13px">Forma de cobrança</span>'+Seg("frequencia",l.frequencia||"semanal",[["semanal","Semanal"],["quinzenal","Quinzenal"],["mensal","Mensal"]])+'</div>'+
+  F("Valor por parcela (R$)","valor",l.valor,"number",'inputmode="decimal" step="0.01" min="0"')+
+  F("Data de início (1º vencimento)","inicio",l.inicio,"date")+F("Caução (R$)","caucao",l.caucao,"number",'inputmode="decimal" step="0.01" min="0"')+'<div class="note full" id="h-venc"></div>'+
+  Sel("Situação","status",l.status||"ativa",[["ativa","Ativa"],["encerrada","Encerrada"]])+F("Data de devolução","fim",l.fim,"date")+
+  F("Km na retirada","kmInicio",l.kmInicio,"number",'inputmode="numeric" min="0"')+F("Km na devolução","kmFim",l.kmFim,"number",'inputmode="numeric" min="0"')+
+  '<div class="note full">Cada pagamento lançado como “Mensalidade / aluguel” desta locação cobre uma '+'semana, quinzena ou mês, a partir da data de início. É assim que o app sabe quem está em dia.</div>'+
+  F("Observações","obs",l.obs,"textarea","full")+'</div></fieldset>',{kind:"locacao",id:l.id,col:"locacoes"});
+}
+function formLanc(t){
+  const isIn=t.tipo==="receita";
+  const locOpts=[["","Nenhuma"],...S.locacoes.filter(l=>l.status!=="encerrada"||l.id===t.locacaoId).map(l=>{const c=byId("clientes",l.clienteId),v=byId("veiculos",l.veiculoId);return[l.id,(c?c.nome:"?")+" — "+(v?v.placa:"?")]})];
+  openSheet(t.id?"Editar lançamento":isIn?"Nova receita":t.categoria==="Manutenção"?"Lançar manutenção":"Nova despesa",
+  '<fieldset>'+Seg("tipo",t.tipo,[["receita","Entrada"],["despesa","Saída"]])+'<div class="grid">'+
+  Sel("Categoria","categoria",t.categoria,(isIn?REC:DESP),"full")+
+  '<div class="full grid" id="manut-box"'+(t.categoria==="Manutenção"?"":" hidden")+'>'+F("Peças (R$)","pecas",t.pecas,"number",'inputmode="decimal" step="0.01" min="0"')+F("Mão de obra (R$)","maoDeObra",t.maoDeObra,"number",'inputmode="decimal" step="0.01" min="0"')+F("Oficina / fornecedor","oficina",t.oficina,"text")+F("Km no serviço","km",t.km,"number",'inputmode="numeric" min="0"')+'<label class="f" style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input type="checkbox" name="trocaOleo" id="f-trocaOleo" style="width:auto"'+(t.trocaOleo?" checked":"")+'> Trocou o óleo</label><label class="f" style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input type="checkbox" name="revisao" id="f-revisao" style="width:auto"'+(t.revisao?" checked":"")+'> Fez revisão</label></div>'+
+  F("Valor total (R$)","valor",t.valor,"number",'inputmode="decimal" step="0.01" min="0" required')+F("Data","data",t.data||todayIso(),"date")+
+  Sel("Veículo","veiculoId",t.veiculoId,[["","Nenhum / geral"],...S.veiculos.map(v=>[v.id,veicLabel(v)])],"full")+
+  '<div class="full grid" id="rec-box"'+(isIn?"":" hidden")+'>'+Sel("Locação (cliente)","locacaoId",t.locacaoId,locOpts,"full")+'</div>'+
+  Sel("Forma de pagamento","formaPagamento",t.formaPagamento||"Pix",PAGTO)+F("Descrição","descricao",t.descricao,"text",'placeholder="'+(isIn?"Semana 12/11":"Troca de óleo e pastilhas")+'"')+
+  '</div></fieldset>',{kind:"lanc",id:t.id,col:"lancamentos"});
+}
+
+function formMulta(m){m=m||{dataInfracao:todayIso(),gravidade:"media",pagamento:"aberta",cobranca:"a_cobrar",infracao:""};
+  openSheet(m.id?"Multa":"Lançar multa",
+  '<fieldset><legend>Veículo e condutor</legend><div class="grid">'+Sel("Veículo","veiculoId",m.veiculoId,[["","Escolha o veículo"],...S.veiculos.map(v=>[v.id,veicLabel(v)])],"full")+
+  F("Data da infração","dataInfracao",m.dataInfracao,"date")+F("Hora","hora",m.hora,"time")+
+  Sel("Condutor responsável","clienteId",m.clienteId,[["","Não informado"],...S.clientes.map(c=>[c.id,c.nome])],"full")+'<div class="hint full" id="h-condutor"></div></div></fieldset>'+
+  '<fieldset><legend>Tipificação da autuação</legend><div class="grid">'+Sel("Infração","infracao",m.infracao,[["","Escolha a infração"],...INFR.map(x=>[x[0],x[1]+(x[2]?" ("+x[2]+")":"")])],"full")+
+  '<div class="full grid" id="outra-box"'+(m.infracao==="outra"?"":" hidden")+'>'+F("Descrição da infração","descricaoInfracao",m.descricaoInfracao,"text",'class="full"')+'</div>'+
+  F("Enquadramento (artigo do CTB)","artigo",m.artigo,"text",'placeholder="Art. 218, I"')+F("Código da infração","codigo",m.codigo,"text",'placeholder="745-50" inputmode="numeric"')+
+  Sel("Gravidade","gravidade",m.gravidade,Object.entries(GRAV).map(([k,g])=>[k,g.t+" ("+g.pts+" pts)"]))+F("Pontos na CNH","pontos",m.pontos??(GRAV[m.gravidade]||{}).pts,"number",'inputmode="numeric" min="0"')+
+  F("Nº do auto (AIT)","numeroAuto",m.numeroAuto,"text",'autocapitalize="characters"')+F("Órgão autuador","orgao",m.orgao,"text",'placeholder="DETRAN-SP, PRF, Prefeitura"')+
+  F("Local","local",m.local,"text",'class="full" placeholder="Av. Paulista, 1000 - São Paulo/SP"')+'</div></fieldset>'+
+  '<fieldset><legend>Valor e prazos</legend><div class="grid">'+F("Valor da multa (R$)","valor",m.valor,"number",'inputmode="decimal" step="0.01" min="0"')+F("Valor com desconto (R$)","valorDesconto",m.valorDesconto,"number",'inputmode="decimal" step="0.01" min="0"')+
+  F("Vencimento (prazo de pagamento)","vencimento",m.vencimento,"date")+F("Prazo para indicar o condutor","prazoIndicacao",m.prazoIndicacao,"date")+
+  '<label class="f full" style="display:flex;align-items:center;gap:8px;color:var(--fg)"><input type="checkbox" name="condutorIndicado" id="f-condutorIndicado" style="width:auto"'+(m.condutorIndicado?" checked":"")+'> Condutor já foi indicado ao órgão</label>'+
+  '<div class="note full">O valor é preenchido pela gravidade, mas confira na notificação. Pagando até o vencimento há 20% de desconto (40% pelo app SNE, se a locadora aderiu). O prazo de indicação do condutor está na notificação de autuação.</div></div></fieldset>'+
+  '<fieldset><legend>Pagamento e cobrança</legend><div class="grid">'+Sel("Situação","pagamento",m.pagamento,[["aberta","Em aberto"],["paga","Paga ao órgão"]])+F("Data do pagamento","dataPagamento",m.dataPagamento,"date")+
+  F("Valor pago (R$)","valorPago",m.valorPago,"number",'inputmode="decimal" step="0.01" min="0"')+Sel("Cobrança do condutor","cobranca",m.cobranca,[["a_cobrar","A cobrar do condutor"],["recebida","Condutor já pagou"],["nao_cobrar","Não cobrar"]])+
+  '<div class="note full">Ao marcar como paga, o app lança a despesa no caixa. Quando o condutor pagar, lança a receita “Multa repassada ao cliente”.</div>'+
+  F("Observações","obs",m.obs,"textarea","full")+'</div></fieldset>',{kind:"multa",id:m.id,col:"multas"});
+  sugerirCondutor(false);
+}
+function sugerirCondutor(apply){
+  const h=$("#h-condutor");if(!h)return;
+  const l=locNaData($("#f-veiculoId").value,$("#f-dataInfracao").value), c=l&&byId("clientes",l.clienteId);
+  if(!$("#f-veiculoId").value){h.className="hint full";h.textContent="";return}
+  if(c){h.className="hint full ok";h.textContent="Nessa data o veículo estava com "+c.nome+" (locação desde "+fd(l.inicio)+").";if(apply)$("#f-clienteId").value=c.id}
+  else{h.className="hint full";h.textContent="Nenhuma locação desse veículo nessa data. Escolha o condutor manualmente."}
+}
+function aplicaInfracao(){
+  const x=infrById($("#f-infracao").value);$("#outra-box").hidden=!x||x[0]!=="outra";if(!x)return;
+  if(x[0]!=="outra"){$("#f-artigo").value=x[2];}
+  $("#f-gravidade").value=x[3];aplicaGravidade(x[4]);
+}
+function aplicaGravidade(fator){
+  const g=GRAV[$("#f-gravidade").value];if(!g)return;
+  if(!fator){const x=infrById($("#f-infracao").value);fator=x&&x[3]===$("#f-gravidade").value?x[4]:1}
+  $("#f-pontos").value=g.pts;const v=+(g.v*fator).toFixed(2);$("#f-valor").value=v.toFixed(2);$("#f-valorDesconto").value=(v*0.8).toFixed(2);
+}
+/* validação ao vivo dentro da folha */
+function wireLive(){
+  const f=$("#frm");if(!f)return;
+  const upd=()=>{
+    const p=$("#f-placa");if(p){const h=$("#h-placa"),v=normPlate(p.value);h.className="hint full "+(v?plateOk(v)?"ok":"bad":"");h.textContent=v?plateOk(v)?"Placa "+plateKind(v)+" válida":"Formato esperado: ABC1D23 (Mercosul) ou ABC1234":""}
+    const ch=$("#f-chassi");if(ch){const h=$("#h-chassi"),v=ch.value.replace(/\s/g,"");if(!v){h.textContent="";h.className="hint full"}else if(v.length!==17){h.className="hint full bad";h.textContent="O chassi tem 17 caracteres ("+v.length+" digitados)"}else{const d=decodeVin(v);h.className="hint full ok";h.textContent="Chassi reconhecido"+(d.marca?" · fabricante "+d.marca:"")+(d.ano?" · ano-modelo "+d.ano:"");}}
+    const cpf=$("#f-cpf");if(cpf){const h=$("#h-cpf"),d=digits(cpf.value);h.className="hint full "+(d?cpfOk(d)?"ok":"bad":"");h.textContent=d?cpfOk(d)?"CPF válido":d.length<11?"CPF incompleto":"CPF inválido: confira os números":""}
+    const hv=$("#h-venc");if(hv){const ini=$("#f-inicio").value,fr=(document.querySelector('#frm input[name=frequencia]:checked')||{}).value||"mensal",pg=sheet&&sheet.id?locInfo(byId("locacoes",sheet.id)||{}).pagos||0:0;hv.innerHTML=ini?'<b>Próximos vencimentos:</b> '+[0,1,2,3].map(k=>fd(addPeriod(ini,fr,pg+k)).slice(0,5)).join(" · ")+' …':"Informe a data de início para ver os vencimentos."}
+    const val=$("#f-cnhValidade");if(val){const h=$("#h-cnh"),i=val.value?cnhInfo({cnhValidade:val.value}):null;h.className="hint full "+(i?i.cls==="ok"?"ok":"bad":"");h.textContent=i?i.txt:""}
+  };
+  upd();
+  f.addEventListener("input",e=>{
+    const n=e.target.name;
+    if(n==="cpf"){const d=digits(e.target.value).slice(0,11);e.target.value=d.replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d)/,"$1.$2").replace(/(\d{3})(\d{1,2})$/,"$1-$2")}
+    if(n==="cep"){const d=digits(e.target.value).slice(0,8);e.target.value=d.length>5?d.slice(0,5)+"-"+d.slice(5):d}
+    if(n==="placa"){e.target.value=normPlate(e.target.value).slice(0,7)}
+    if(n==="chassi"){e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"").slice(0,17);const d=decodeVin(e.target.value);if(d){const m=$("#f-marca"),a=$("#f-anoModelo");if(m&&!m.value&&d.marca)m.value=d.marca;if(a&&!a.value&&d.ano)a.value=d.ano}}
+    if(n==="pecas"||n==="maoDeObra"){const t=(+$("#f-pecas").value||0)+(+$("#f-maoDeObra").value||0);$("#f-valor").value=t?t.toFixed(2):""}
+    upd();
+  });
+  f.addEventListener("change",e=>{
+    const n=e.target.name;
+    if(n==="tipo"&&sheet&&sheet.kind==="lanc"){const tipo=e.target.value,sel=$("#f-categoria");sel.innerHTML=(tipo==="receita"?REC:DESP).map(c=>'<option>'+esc(c)+'</option>').join("");$("#rec-box").hidden=tipo!=="receita";$("#manut-box").hidden=sel.value!=="Manutenção"}
+    if(n==="categoria"){$("#manut-box").hidden=e.target.value!=="Manutenção"}
+    if(sheet&&sheet.kind==="multa"){if(n==="veiculoId"||n==="dataInfracao")sugerirCondutor(true);if(n==="infracao")aplicaInfracao();if(n==="gravidade")aplicaGravidade();if(n==="pagamento"&&e.target.value==="paga"){const d=$("#f-dataPagamento"),vp=$("#f-valorPago");if(!d.value)d.value=todayIso();if(!vp.value)vp.value=$("#f-valorDesconto").value||$("#f-valor").value}}
+    if(n==="locacaoId"&&e.target.value){const l=byId("locacoes",e.target.value);if(l){$("#f-veiculoId").value=l.veiculoId||"";const v=$("#f-valor");if(!v.value)v.value=l.valor||""}}
+  });
+}
+
+function collect(){
+  const f=$("#frm"), o={};
+  new FormData(f).forEach((v,k)=>{o[k]=typeof v==="string"?v.trim():v});
+  f.querySelectorAll("input[type=checkbox]").forEach(c=>o[c.name]=c.checked);
+  f.querySelectorAll("input[type=number]").forEach(i=>{o[i.name]=i.value===""?null:+i.value});
+  return o;
+}
+function validate(kind,o){
+  if(kind==="veiculo"){o.placa=normPlate(o.placa);o.chassi=(o.chassi||"").toUpperCase();o.motor=(o.motor||"").toUpperCase();if(!o.placa)return"Informe a placa do veículo.";if(!plateOk(o.placa))return"A placa precisa estar no formato ABC1D23 ou ABC1234.";if(S.veiculos.some(v=>v.placa===o.placa&&v.id!==sheet.id))return"Já existe um veículo com a placa "+o.placa+".";}
+  if(kind==="cliente"){if(!o.nome)return"Informe o nome completo.";o.cpf=digits(o.cpf);if(o.cpf&&!cpfOk(o.cpf))return"O CPF informado é inválido. Confira os números.";if(o.cpf&&S.clientes.some(c=>c.cpf===o.cpf&&c.id!==sheet.id))return"Já existe um cliente com esse CPF.";}
+  if(kind==="locacao"){if(!o.clienteId)return"Escolha o cliente.";if(!o.veiculoId)return"Escolha o veículo.";if(!o.valor)return"Informe o valor da locação.";if(!o.inicio)return"Informe a data de início.";if(o.status==="encerrada"&&!o.fim)o.fim=todayIso();}
+  if(kind==="multa"){if(!o.veiculoId)return"Escolha o veículo multado.";if(!o.dataInfracao)return"Informe a data da infração.";if(!o.infracao)return"Escolha a infração.";if(o.infracao==="outra"&&!o.descricaoInfracao)return"Descreva a infração.";if(!o.valor)return"Informe o valor da multa.";if(o.pagamento==="paga"&&!o.dataPagamento)o.dataPagamento=todayIso();if(o.pagamento==="paga"&&!o.valorPago)o.valorPago=o.valor;if(o.cobranca==="recebida"&&!o.clienteId)return"Escolha o condutor que pagou a multa.";}
+  if(kind==="lanc"){if(!o.valor||o.valor<=0)return"Informe um valor maior que zero.";if(!o.data)return"Informe a data.";if(o.tipo!=="receita")o.locacaoId="";if(o.categoria!=="Manutenção"){delete o.pecas;delete o.maoDeObra;delete o.oficina;delete o.km;delete o.trocaOleo;delete o.revisao}else if((o.trocaOleo||o.revisao)&&!o.km)return"Informe o km do serviço para registrar a troca de óleo ou revisão."
+    if(o.locacaoId&&!o.clienteId){const l=byId("locacoes",o.locacaoId);if(l)o.clienteId=l.clienteId}if(!o.locacaoId)o.clienteId="";}
+  return null;
+}
+
+async function save(){
+  if(!sheet||!db)return toast("Entre na sua conta para salvar.");
+  if(sheet.kind==="empresa"){const o=collect();if(!o.nome)return toast("Informe o nome da empresa.");try{await db.doc("config/empresa").set(Object.assign({},o,{atualizadoEm:Date.now()}));closeSheet();toast("Dados da locadora salvos")}catch(e){dbErr(e)}return}
+  if(sheet.kind==="km"){const o=collect(),v=byId("veiculos",sheet.id);if(o.km==null)return toast("Informe a quilometragem.");if(v.km!=null&&o.km<+v.km)return toast("A quilometragem não pode ser menor que a anterior ("+Number(v.km).toLocaleString("pt-BR")+" km).");const d=Object.assign({},v,{km:o.km,kmAtualizadoEm:todayIso()});delete d.id;try{await db.collection("veiculos").doc(v.id).set(d);closeSheet();toast("Quilometragem atualizada")}catch(e){dbErr(e)}return}
+  const o=collect(), err=validate(sheet.kind,o);
+  if(err)return toast(err);
+  const col=sheet.col, prev=sheet.id?byId(col,sheet.id):null;
+  const data=Object.assign({},prev||{},o,{atualizadoEm:Date.now()});
+  delete data.id; if(!prev)data.criadoEm=Date.now(); delete data.exemplo; if(prev&&prev.exemplo)data.exemplo=true;
+  const btn=$("#frm button[type=submit]");btn.disabled=true;
+  try{
+    if(sheet.kind==="multa"){
+      const ref=sheet.id?db.collection(col).doc(sheet.id):db.collection(col).doc(), desc=infrTxt(data)+(data.numeroAuto?" · AIT "+data.numeroAuto:"");
+      if(data.pagamento==="paga"&&!data.lancPagoId){const r=await db.collection("lancamentos").add({tipo:"despesa",categoria:"Multa",valor:data.valorPago||data.valor,data:data.dataPagamento,veiculoId:data.veiculoId,locacaoId:"",clienteId:"",formaPagamento:"Boleto",descricao:"Multa paga: "+desc,multaId:ref.id,criadoEm:Date.now()});data.lancPagoId=r.id}
+      if(data.cobranca==="recebida"&&!data.lancRecebidoId){const r=await db.collection("lancamentos").add({tipo:"receita",categoria:"Multa repassada ao cliente",valor:data.valorPago||data.valor,data:todayIso(),veiculoId:data.veiculoId,locacaoId:"",clienteId:data.clienteId,formaPagamento:"Pix",descricao:"Reembolso de multa: "+desc,multaId:ref.id,criadoEm:Date.now()});data.lancRecebidoId=r.id}
+      await ref.set(data);
+    }
+    else if(sheet.id)await db.collection(col).doc(sheet.id).set(data);else await db.collection(col).add(data);
+    if(sheet.kind==="locacao"&&!prev&&o.caucao>0)await db.collection("lancamentos").add({tipo:"receita",categoria:"Caução",valor:o.caucao,data:o.inicio,veiculoId:o.veiculoId,locacaoId:"",clienteId:o.clienteId,formaPagamento:"Pix",descricao:"Caução da locação",criadoEm:Date.now()});
+    if(sheet.kind==="lanc"&&o.categoria==="Manutenção"&&o.veiculoId){const v=byId("veiculos",o.veiculoId);if(v){const d=Object.assign({},v),km=+o.km||0;delete d.id;let ch=false;if(km&&km>(+v.km||0)){d.km=km;ch=true}if(o.trocaOleo&&km){d.oleoUltimaKm=km;ch=true}if(o.revisao&&km){d.revUltimaKm=km;ch=true}if(ch)await db.collection("veiculos").doc(v.id).set(d)}}
+    if(sheet.kind==="locacao"&&o.veiculoId){const v=byId("veiculos",o.veiculoId),km=Math.max(+o.kmFim||0,+o.kmInicio||0);if(v&&km>(+v.km||0)){const d=Object.assign({},v,{km});delete d.id;await db.collection("veiculos").doc(v.id).set(d)}}
+    const msg={veiculo:"Veículo salvo",cliente:"Cliente salvo",locacao:"Locação salva",lanc:"Lançamento salvo",multa:"Multa salva"}[sheet.kind];
+    closeSheet();toast(msg);
+  }catch(e){btn.disabled=false;dbErr(e)}
+}
+async function del(){
+  if(!sheet||!db)return;
+  const btn=document.querySelector('[data-act="del"]');
+  if(!sheet.confirmDel){
+    const deps=sheet.kind==="veiculo"?S.locacoes.filter(l=>l.veiculoId===sheet.id&&l.status!=="encerrada").length:sheet.kind==="cliente"?S.locacoes.filter(l=>l.clienteId===sheet.id&&l.status!=="encerrada").length:0;
+    if(deps)return toast("Encerre a locação ativa antes de excluir.");
+    sheet.confirmDel=true;btn.textContent="Toque de novo para excluir";btn.classList.add("pri");btn.style.background="var(--out)";btn.style.borderColor="var(--out)";btn.style.color="#fff";return;
+  }
+  try{if(sheet.kind==="lanc")await delLanc(sheet.id);else await db.collection(sheet.col).doc(sheet.id).delete();closeSheet();toast("Excluído")}catch(e){dbErr(e)}
+}
+async function delLanc(id){
+  const t=byId("lancamentos",id);if(!t||!db)return;
+  await db.collection("lancamentos").doc(id).delete();
+  if(t.multaId){const m=byId("multas",t.multaId);if(m){const d=Object.assign({},m);delete d.id;
+    if(m.lancPagoId===id){delete d.lancPagoId;d.pagamento="aberta";delete d.dataPagamento;delete d.valorPago}
+    if(m.lancRecebidoId===id){delete d.lancRecebidoId;d.cobranca="a_cobrar"}
+    await db.collection("multas").doc(m.id).set(d)}}
+}
+async function clearExamples(){
+  if(!db)return;
+  const items=COLS.flatMap(c=>S[c].filter(x=>x.exemplo).map(x=>[c,x.id]));
+  try{for(const [c,id] of items)await db.collection(c).doc(id).delete();toast("Exemplos apagados")}catch(e){dbErr(e)}
+}
+function dbErr(e){const c=e&&e.code;if(c==="blocked"){readOnly=true;render();toast("Seu acesso venceu. Renove a assinatura para lançar e editar.");return}if(c==="invalid_argument"&&!readOnly){readOnly=true;render();toast("Você não tem permissão para salvar neste app.")}else if(c==="quota_exceeded")toast("O espaço do app está cheio. Exclua registros antigos para continuar.");else toast("Não foi possível salvar agora. Tente de novo em instantes.")}
+
+let toastT;function toast(m){$("#toast-root").innerHTML='<div class="toast" role="status">'+esc(m)+'</div>';clearTimeout(toastT);toastT=setTimeout(()=>$("#toast-root").innerHTML="",2800)}
+
+/* ---------- dados da empresa ---------- */
+let EMP={};
+function formEmpresa(){const e=EMP||{};
+  openSheet("Dados da locadora",
+  '<div class="note">Esses dados aparecem no contrato, nos recibos, na indicação de condutor e nas mensagens de cobrança.</div>'+
+  '<fieldset><div class="grid">'+F("Nome da empresa / locador","nome",e.nome,"text",'class="full" placeholder="JR Locações"')+F("CNPJ ou CPF","documento",e.documento,"text",'inputmode="numeric"')+F("Telefone / WhatsApp","telefone",e.telefone,"tel")+
+  F("Endereço","endereco",e.endereco,"text",'class="full" placeholder="Rua, número, bairro"')+F("Cidade","cidade",e.cidade,"text")+Sel("UF","uf",e.uf||"",[["","—"],...UFS])+
+  F("Chave Pix","pix",e.pix,"text",'class="full"')+F("Responsável (assina os documentos)","responsavel",e.responsavel,"text",'class="full"')+
+  F("Foro do contrato (cidade/UF)","foro",e.foro,"text",'placeholder="São Paulo/SP"')+F("Multa por atraso (%)","multaAtraso",e.multaAtraso??2,"number",'inputmode="decimal" step="0.1" min="0"')+
+  F("Juros ao mês por atraso (%)","jurosMes",e.jurosMes??1,"number",'inputmode="decimal" step="0.1" min="0"')+F("Aviso para rescindir (dias)","avisoDias",e.avisoDias??7,"number",'inputmode="numeric" min="0"')+
+  '</div></fieldset>',{kind:"empresa",id:null,col:"config"});
+}
+
+/* ---------- WhatsApp ---------- */
+const foneWa=t=>{let d=digits(t);if(!d)return"";if(d.length<=11)d="55"+d;return d};
+const waLink=(fone,msg)=>"https://wa.me/"+foneWa(fone)+"?text="+encodeURIComponent(msg);
+function msgCobranca(l){const c=byId("clientes",l.clienteId)||{},v=byId("veiculos",l.veiculoId)||{},i=locInfo(l),nome=(c.nome||"").split(" ")[0];
+  const emp=EMP.nome?"Aqui é da "+EMP.nome+". ":"";
+  let t="Olá, "+nome+"! "+emp;
+  if(i.abertas>0){const d=-i.st.d;t+="Consta em aberto o pagamento da locação do veículo "+[v.marca,v.modelo].filter(Boolean).join(" ")+" (placa "+(v.placa||"")+"): "+i.abertas+" parcela"+(i.abertas===1?"":"s")+" "+(i.abertas===1?{semanal:"semanal",quinzenal:"quinzenal",mensal:"mensal"}:{semanal:"semanais",quinzenal:"quinzenais",mensal:"mensais"})[l.frequencia||"mensal"]+" de "+brl(l.valor)+", total de "+brl(i.devido)+", com "+vencidoTxt(d)+" (desde "+fd(i.prox)+").";}
+  else t+="Lembrando que o pagamento da locação do veículo placa "+(v.placa||"")+", no valor de "+brl(l.valor)+", "+(i.st&&i.st.d===0?"vence hoje":"vence em "+fd(i.prox))+".";
+  if(EMP.pix)t+="\n\nChave Pix: "+EMP.pix;
+  return t+"\n\nQualquer dúvida estou à disposição. Obrigado!";
+}
+function waBtn(l,cls){const c=byId("clientes",l.clienteId);if(!c||!digits(c.telefone))return"";return '<a class="btn sm wa '+(cls||"")+'" href="'+esc(waLink(c.telefone,msgCobranca(l)))+'" target="_blank" rel="noopener">'+IC.wa+'Cobrar no WhatsApp</a>'}
+
+/* ---------- valor por extenso ---------- */
+const UN=["","um","dois","três","quatro","cinco","seis","sete","oito","nove","dez","onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove"],DZ=["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"],CT=["","cento","duzentos","trezentos","quatrocentos","quinhentos","seiscentos","setecentos","oitocentos","novecentos"];
+function ext3(n){if(n===100)return"cem";const c=Math.floor(n/100),r=n%100,p=[];if(c)p.push(CT[c]);if(r<20){if(r)p.push(UN[r])}else{const d=Math.floor(r/10),u=r%10;p.push(DZ[d]+(u?" e "+UN[u]:""))}return p.join(" e ")}
+function extInt(n){if(n===0)return"zero";const mi=Math.floor(n/1e6),mil=Math.floor(n%1e6/1000),r=n%1000,g=[];
+  if(mi)g.push([mi===1?"um milhão":ext3(mi)+" milhões",mi*1e6]);if(mil)g.push([mil===1?"mil":ext3(mil)+" mil",mil*1000]);if(r)g.push([ext3(r),r]);
+  return g.map((x,i)=>i===0?x[0]:((i===g.length-1&&(x[1]<100||x[1]%100===0))?" e ":" ")+x[0]).join("")}
+function extenso(v){const c=Math.round((+v||0)*100),re=Math.floor(c/100),ce=c%100;let s="";
+  if(re)s=extInt(re)+(re===1?" real":(re%1e6===0?" de reais":" reais"));if(ce)s+=(s?" e ":"")+extInt(ce)+(ce===1?" centavo":" centavos");return s||"zero reais"}
+
+/* ---------- bibliotecas sob demanda ---------- */
+const LIBS={jspdf:["https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",()=>window.jspdf],xlsx:["https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",()=>window.XLSX]};
+const libP={};
+function loadLib(k){const[u,g]=LIBS[k];if(g())return Promise.resolve(g());return libP[k]=libP[k]||new Promise((ok,no)=>{const s=document.createElement("script");s.src=u;s.onload=()=>g()?ok(g()):no(new Error("lib"));s.onerror=()=>{libP[k]=null;no(new Error("lib"))};document.head.appendChild(s)})}
+async function salvarArquivo(nome,data){
+  try{const b=data instanceof Blob?data:new Blob([data]);const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download=nome;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);toast("Arquivo pronto")}catch(e){toast("Não foi possível baixar o arquivo.")}
+}
+let logoPng=null;
+async function getLogo(){if(logoPng!==null)return logoPng;try{const el=document.querySelector("svg.brand-mark");const x=new XMLSerializer().serializeToString(el).replace(/class="brand-mark"/,'width="360" height="368"');
+  const img=new Image();await new Promise((ok,no)=>{img.onload=ok;img.onerror=no;img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(x)});
+  const cv=document.createElement("canvas");cv.width=360;cv.height=368;cv.getContext("2d").drawImage(img,0,0,360,368);logoPng=cv.toDataURL("image/png")}catch(e){logoPng=""}return logoPng}
+
+/* ---------- PDF ---------- */
+async function novoPdf(titulo){
+  const {jsPDF}=await loadLib("jspdf");const doc=new jsPDF({unit:"mm",format:"a4"}),M=18,W=210-2*M;let y=16;const logo=await getLogo();
+  if(logo)doc.addImage(logo,"PNG",M,y-2,17,17.4,"logo","FAST");
+  const x0=logo?M+21:M;doc.setFont("helvetica","bold");doc.setFontSize(13);doc.text(EMP.nome||"Locadora",x0,y+3);
+  doc.setFont("helvetica","normal");doc.setFontSize(8.5);doc.setTextColor(90);
+  [[EMP.documento?(digits(EMP.documento).length>11?"CNPJ ":"CPF ")+EMP.documento:"",EMP.telefone].filter(Boolean).join("  ·  "),[EMP.endereco,[EMP.cidade,EMP.uf].filter(Boolean).join("/")].filter(Boolean).join(" - ")].forEach((t,i)=>t&&doc.text(t,x0,y+8+i*4));
+  doc.setTextColor(0);y+=20;doc.setDrawColor(40,52,71);doc.setLineWidth(.6);doc.line(M,y,M+W,y);y+=9;
+  doc.setFont("helvetica","bold");doc.setFontSize(13.5);doc.text(titulo,105,y,{align:"center"});y+=8;
+  const P={doc,M,W,
+    get y(){return y},set y(v){y=v},
+    need(h){if(y+h>282){doc.addPage();y=18}},
+    sec(t){P.need(12);y+=2;doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(40,52,71);doc.text(t.toUpperCase(),M,y);doc.setTextColor(0);y+=1.6;doc.setDrawColor(200);doc.setLineWidth(.2);doc.line(M,y,M+W,y);y+=5},
+    p(t,o){o=o||{};doc.setFont("helvetica",o.bold?"bold":"normal");doc.setFontSize(o.size||10);const ls=doc.splitTextToSize(t,W-(o.indent||0));ls.forEach(l=>{P.need(5);doc.text(l,M+(o.indent||0),y,o.justify&&false?{align:"justify",maxWidth:W}:undefined);y+=(o.size||10)*0.45});y+=o.gap??2},
+    kv(rows){doc.setFontSize(9.5);const cw=W/2;for(let i=0;i<rows.length;i+=2){P.need(10);[rows[i],rows[i+1]].forEach((r,j)=>{if(!r)return;doc.setFont("helvetica","normal");doc.setTextColor(100);doc.text(r[0],M+j*cw,y);doc.setTextColor(0);doc.setFont("helvetica","bold");doc.text(doc.splitTextToSize(String(r[1]||"—"),cw-4)[0],M+j*cw,y+4.4)});y+=10}},
+    assin(nomes){P.need(30);y+=16;const n=nomes.length,cw=W/n;nomes.forEach((t,i)=>{const cx=M+cw*i+cw/2;doc.setDrawColor(0);doc.setLineWidth(.3);doc.line(cx-cw/2+6,y,cx+cw/2-6,y);doc.setFont("helvetica","bold");doc.setFontSize(9);doc.text(t[0],cx,y+4.5,{align:"center"});doc.setFont("helvetica","normal");doc.setFontSize(8.5);if(t[1])doc.text(t[1],cx,y+8.8,{align:"center"})});y+=14},
+    async salvar(nome){const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(130);doc.text("Página "+i+" de "+n,105,290,{align:"center"})}await salvarArquivo(nome,doc.output("arraybuffer"))}
+  };
+  return P;
+}
+const dataExt=s=>{const d=pd(s||todayIso());return d.getDate()+" de "+["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"][d.getMonth()]+" de "+d.getFullYear()};
+const localData=s=>([EMP.cidade,EMP.uf].filter(Boolean).join("/")||"____________")+", "+dataExt(s)+".";
+const endCli=c=>[[c.logradouro,c.numero].filter(Boolean).join(", "),c.complemento,c.bairro,[c.cidade,c.uf].filter(Boolean).join("/"),c.cep?"CEP "+c.cep:""].filter(Boolean).join(" - ");
+const slug=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40);
+function precisaEmpresa(){if(!EMP.nome){toast("Preencha os dados da locadora primeiro.");formEmpresa();return true}return false}
+async function gerando(fn){toast("Gerando documento…");try{await fn()}catch(e){toast(e&&e.message==="lib"?"Não consegui carregar o gerador de PDF. Verifique a internet.":"Não foi possível gerar o documento.")}}
+
+async function pdfContrato(l){
+  if(precisaEmpresa())return;const c=byId("clientes",l.clienteId)||{},v=byId("veiculos",l.veiculoId)||{},fr={semanal:"semanal",quinzenal:"quinzenal",mensal:"mensal"}[l.frequencia||"mensal"],per={semanal:"semana",quinzenal:"quinzena",mensal:"mês"}[l.frequencia||"mensal"];
+  const P=await novoPdf("CONTRATO DE LOCAÇÃO DE VEÍCULO");const p=P.p,sec=P.sec;
+  sec("Locador");P.kv([["Nome / Razão social",EMP.nome],["CPF / CNPJ",EMP.documento],["Endereço",[EMP.endereco,[EMP.cidade,EMP.uf].filter(Boolean).join("/")].filter(Boolean).join(" - ")],["Telefone",EMP.telefone]]);
+  sec("Locatário");P.kv([["Nome completo",c.nome],["CPF",fmtCpf(c.cpf)],["RG",[c.rg,c.rgOrgao].filter(Boolean).join(" ")],["Nascimento",fd(c.nascimento)],["CNH nº",c.cnhNumero],["Categoria / validade",(c.cnhCategoria||"—")+" / "+fd(c.cnhValidade)],["Telefone",c.telefone],["E-mail",c.email]]);p("Endereço: "+(endCli(c)||"—"),{size:9.5});
+  sec("Veículo");P.kv([["Tipo",v.tipo==="moto"?"Motocicleta":"Automóvel"],["Marca / modelo",[v.marca,v.modelo].filter(Boolean).join(" ")],["Placa",v.placa],["Ano fab./modelo",[v.anoFabricacao,v.anoModelo].filter(Boolean).join("/")],["Cor",v.cor],["Renavam",v.renavam],["Chassi",v.chassi],["Km na retirada",l.kmInicio!=null?Number(l.kmInicio).toLocaleString("pt-BR"):"—"]]);
+  sec("Condições");P.kv([["Valor da locação",brl(l.valor)+" por "+per+" ("+extenso(l.valor)+")"],["Forma de cobrança",fr.charAt(0).toUpperCase()+fr.slice(1)],["Início / 1º vencimento",fd(l.inicio)],["Caução",l.caucao?brl(l.caucao):"Não há"]]);
+  sec("Cláusulas");
+  const cl=[
+   "OBJETO. O LOCADOR cede ao LOCATÁRIO, em locação, o veículo acima descrito, em perfeito estado de conservação e funcionamento, conforme vistoria realizada na entrega, que o LOCATÁRIO declara ter conferido.",
+   "PRAZO. A locação vigora por prazo indeterminado a partir de "+fd(l.inicio)+", podendo qualquer das partes encerrá-la mediante aviso com "+(EMP.avisoDias??7)+" dias de antecedência, sem prejuízo dos valores devidos até a devolução.",
+   "PAGAMENTO. O LOCATÁRIO pagará "+brl(l.valor)+" ("+extenso(l.valor)+") por "+per+", de forma antecipada, com vencimentos a cada "+per+" contados de "+fd(l.inicio)+(EMP.pix?", preferencialmente por Pix na chave "+EMP.pix:"")+". O atraso implica multa de "+(EMP.multaAtraso??2)+"% sobre o valor devido e juros de "+(EMP.jurosMes??1)+"% ao mês, proporcionais aos dias de atraso.",
+   "INADIMPLÊNCIA. O atraso superior a 3 (três) dias autoriza o LOCADOR a considerar o contrato rescindido e a exigir a devolução imediata do veículo, inclusive com sua retirada, sem prejuízo da cobrança dos valores em aberto.",
+   "USO. O veículo será conduzido exclusivamente pelo LOCATÁRIO, habilitado na categoria exigida, sendo proibido sublocar, emprestar, ceder, alterar suas características ou utilizá-lo em atividades ilícitas, competições ou transporte acima da capacidade.",
+   "MULTAS E PONTUAÇÃO. São de responsabilidade do LOCATÁRIO as infrações de trânsito cometidas durante a locação, inclusive a pontuação na CNH. O LOCATÁRIO autoriza sua indicação como condutor infrator junto ao órgão de trânsito e se obriga a assinar os formulários necessários e a reembolsar ao LOCADOR os valores pagos.",
+   "MANUTENÇÃO. A manutenção preventiva programada é de responsabilidade do LOCADOR. O LOCATÁRIO deve zelar pelo veículo, verificar diariamente óleo e calibragem, comunicar imediatamente qualquer defeito e apresentar o veículo para revisão quando solicitado. Reparos decorrentes de mau uso, negligência ou acidente correm por conta do LOCATÁRIO.",
+   "DANOS, ROUBO E FURTO. Em caso de acidente, roubo ou furto, o LOCATÁRIO deve registrar boletim de ocorrência e avisar o LOCADOR em até 24 horas. O LOCATÁRIO responde pelos danos causados ao veículo e a terceiros durante a locação, salvo o que for coberto por seguro contratado pelo LOCADOR.",
+   "RASTREAMENTO. O LOCATÁRIO declara ciência de que o veículo possui rastreador e autoriza o monitoramento de sua localização para fins de segurança e recuperação do bem, sendo proibido remover ou danificar o equipamento.",
+   "CAUÇÃO. "+(l.caucao?"O LOCATÁRIO entrega caução de "+brl(l.caucao)+" ("+extenso(l.caucao)+"), que será devolvida após a devolução do veículo e a vistoria final, descontados débitos de locação, multas, danos e despesas pendentes.":"Não há caução nesta locação."),
+   "DEVOLUÇÃO. O veículo deve ser devolvido limpo, nas mesmas condições em que foi recebido, ressalvado o desgaste natural, com todos os documentos e acessórios. A falta de devolução após o encerramento caracteriza apropriação indébita, sujeitando o LOCATÁRIO às medidas legais cabíveis.",
+   "FORO. Fica eleito o foro da comarca de "+(EMP.foro||[EMP.cidade,EMP.uf].filter(Boolean).join("/")||"____________")+" para dirimir questões deste contrato."
+  ];
+  cl.forEach((t,i)=>p("Cláusula "+(i+1)+"ª - "+t,{size:9.5,gap:2.4}));
+  if(l.obs)p("Observações: "+l.obs,{size:9.5});
+  p("E, por estarem de acordo, as partes assinam este contrato em 2 (duas) vias de igual teor.",{size:9.5});
+  p(localData(l.inicio),{size:9.5});
+  P.assin([[EMP.responsavel||EMP.nome,"LOCADOR"],[c.nome||"","LOCATÁRIO"]]);
+  P.assin([["Testemunha 1","CPF:"],["Testemunha 2","CPF:"]]);
+  await P.salvar("Contrato-"+slug(c.nome)+"-"+(v.placa||"")+".pdf");
+}
+
+async function pdfRecibo(t){
+  if(precisaEmpresa())return;const c=byId("clientes",t.clienteId)||{},v=byId("veiculos",t.veiculoId)||{},l=byId("locacoes",t.locacaoId);
+  const num=(t.data||"").replace(/-/g,"").slice(2)+"-"+String(t.id||"").slice(-4).toUpperCase();
+  const P=await novoPdf("RECIBO");const doc=P.doc;
+  doc.setFontSize(10);doc.setFont("helvetica","normal");doc.text("Nº "+num,P.M,P.y);doc.setFont("helvetica","bold");doc.setFontSize(16);doc.text(brl(t.valor),P.M+P.W,P.y+1,{align:"right"});P.y+=10;
+  P.p("Recebi(emos) de "+(c.nome||"__________________________")+(c.cpf?", CPF "+fmtCpf(c.cpf):"")+", a importância de "+brl(t.valor)+" ("+extenso(t.valor)+"), referente a "+(t.categoria==="Mensalidade / aluguel"?"locação do veículo "+[v.marca,v.modelo].filter(Boolean).join(" ")+" placa "+(v.placa||"")+(l?" (cobrança "+({semanal:"semanal",quinzenal:"quinzenal",mensal:"mensal"}[l.frequencia||"mensal"])+")":""):t.categoria.toLowerCase()+(v.placa?" - veículo placa "+v.placa:""))+(t.descricao?" - "+t.descricao:"")+".",{size:11,gap:4});
+  P.kv([["Data do pagamento",fd(t.data)],["Forma de pagamento",t.formaPagamento||"—"]]);
+  P.p("Para clareza, firmo(amos) o presente recibo, dando plena quitação do valor acima.",{size:10});
+  P.p(localData(t.data),{size:10});
+  P.assin([[EMP.responsavel||EMP.nome,(EMP.documento?((digits(EMP.documento).length>11?"CNPJ ":"CPF ")+EMP.documento):"")]]);
+  await P.salvar("Recibo-"+slug(c.nome||t.categoria)+"-"+fd(t.data).replace(/\//g,"-")+".pdf");
+}
+function textoRecibo(t){const c=byId("clientes",t.clienteId)||{},v=byId("veiculos",t.veiculoId)||{};
+  return "*Recibo"+(EMP.nome?" - "+EMP.nome:"")+"*\n\nRecebemos de "+(c.nome||"")+" o valor de *"+brl(t.valor)+"* ("+extenso(t.valor)+"), referente a "+(t.categoria==="Mensalidade / aluguel"?"locação do veículo placa "+(v.placa||""):t.categoria.toLowerCase())+(t.descricao?" ("+t.descricao+")":"")+".\nData: "+fd(t.data)+" · "+(t.formaPagamento||"")+"\n\nObrigado!"}
+function abrirRecibo(t){const c=byId("clientes",t.clienteId);
+  $("#sheet-root").innerHTML='<div class="sheet-bg" data-act="close-bg"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><div class="sheet-h"><h2 id="sheet-title">Recibo de '+brl(t.valor)+'</h2><button class="icon-btn" data-act="close" aria-label="Fechar">'+IC.close+'</button></div>'+
+  '<div class="note" style="white-space:pre-wrap">'+esc(textoRecibo(t))+'</div><div class="actions" style="margin-top:14px"><button class="btn pri" data-act="recibo-pdf" data-id="'+t.id+'">Baixar recibo em PDF</button>'+(c&&digits(c.telefone)?'<a class="btn wa" href="'+esc(waLink(c.telefone,textoRecibo(t)))+'" target="_blank" rel="noopener">'+IC.wa+'Enviar no WhatsApp</a>':'')+'<button class="btn" data-act="copiar" data-txt="'+esc(textoRecibo(t))+'">Copiar texto</button></div></div></div>';
+  sheet={kind:"recibo"};document.body.style.overflow="hidden";
+}
+
+async function pdfIndicacao(m){
+  if(precisaEmpresa())return;const c=byId("clientes",m.clienteId);if(!c)return toast("Escolha o condutor na multa antes de gerar a indicação.");const v=byId("veiculos",m.veiculoId)||{};
+  const P=await novoPdf("TERMO DE INDICAÇÃO DE CONDUTOR INFRATOR");
+  P.p("Documento de apoio para o Formulário de Identificação do Condutor Infrator (FICI) recebido com a notificação de autuação. Anexe-o ao formulário oficial com cópia da CNH do condutor.",{size:8.5,gap:3});
+  P.sec("Auto de infração");P.kv([["Nº do auto (AIT)",m.numeroAuto],["Órgão autuador",m.orgao],["Data e hora",fd(m.dataInfracao)+(m.hora?" às "+m.hora:"")],["Local",m.local],["Infração",infrTxt(m)],["Enquadramento / código",[m.artigo,m.codigo].filter(Boolean).join(" · ")]]);
+  P.sec("Veículo");P.kv([["Placa",v.placa],["Renavam",v.renavam],["Marca / modelo",[v.marca,v.modelo].filter(Boolean).join(" ")],["Chassi",v.chassi]]);
+  P.sec("Proprietário (locador)");P.kv([["Nome / Razão social",EMP.nome],["CPF / CNPJ",EMP.documento]]);
+  P.sec("Condutor indicado");P.kv([["Nome completo",c.nome],["CPF",fmtCpf(c.cpf)],["RG",[c.rg,c.rgOrgao].filter(Boolean).join(" ")],["Nº de registro da CNH",c.cnhNumero],["Categoria",c.cnhCategoria],["Validade da CNH",fd(c.cnhValidade)]]);P.p("Endereço: "+(endCli(c)||"—"),{size:9.5});
+  P.sec("Declaração");
+  P.p("O proprietário acima identificado, nos termos do art. 257, § 7º, do Código de Trânsito Brasileiro, indica como condutor do veículo no momento da infração a pessoa acima qualificada, que se encontrava na posse do veículo em razão de contrato de locação.",{size:10});
+  P.p("O condutor indicado declara que conduzia o veículo na data e hora da infração, reconhece a responsabilidade pela autuação e concorda com a transferência da pontuação para o seu prontuário, estando ciente de que declaração falsa constitui crime (art. 299 do Código Penal).",{size:10});
+  P.p(localData(todayIso()),{size:10});
+  P.assin([[EMP.responsavel||EMP.nome,"Proprietário"],[c.nome,"Condutor indicado"]]);
+  await P.salvar("Indicacao-condutor-"+(v.placa||"")+"-"+slug(c.nome)+".pdf");
+}
+
+/* ---------- planilha ---------- */
+async function exportarPlanilha(ini,fim,rotulo){
+  toast("Gerando planilha…");let X;try{X=await loadLib("xlsx")}catch(e){return toast("Não consegui carregar o gerador de planilha. Verifique a internet.")}
+  const tx=txEntre(ini,fim).sort((a,b)=>(a.data||"").localeCompare(b.data||""));
+  const rows=tx.map(t=>{const v=byId("veiculos",t.veiculoId),c=byId("clientes",t.clienteId),isIn=t.tipo==="receita";return{"Data":pd(t.data),"Tipo":isIn?"Entrada":"Saída","Categoria":t.categoria,"Descrição":t.descricao||"","Veículo":v?v.placa+" "+[v.marca,v.modelo].filter(Boolean).join(" "):"","Cliente":c?c.nome:"","Forma de pagamento":t.formaPagamento||"","Peças":t.pecas||null,"Mão de obra":t.maoDeObra||null,"Valor":(isIn?1:-1)*(+t.valor||0)}});
+  const ent=sumT(tx,"receita"),sai=sumT(tx,"despesa");
+  const wb=X.utils.book_new();
+  const ws=X.utils.json_to_sheet(rows,{cellDates:true});ws["!cols"]=[12,9,24,34,26,24,16,11,12,13].map(w=>({wch:w}));
+  const z='"R$" #,##0.00;[Red]-"R$" #,##0.00';for(let r=1;r<=rows.length;r++){["H","I","J"].forEach(col=>{const cell=ws[col+(r+1)];if(cell)cell.z=z});const d=ws["A"+(r+1)];if(d)d.z="dd/mm/yyyy"}
+  X.utils.book_append_sheet(wb,ws,"Lançamentos");
+  const cats={};tx.forEach(t=>{const k=(t.tipo==="receita"?"Entrada":"Saída")+"|"+t.categoria;cats[k]=(cats[k]||0)+(+t.valor||0)});
+  const res=[["Fluxo de caixa",EMP.nome||""],["Período",fd(ini)+" a "+fd(fim)],[],["Total de entradas",ent],["Total de saídas",sai],["Saldo",ent-sai],[],["Tipo","Categoria","Valor"],...Object.entries(cats).sort().map(([k,v])=>[...k.split("|"),v])];
+  const ws2=X.utils.aoa_to_sheet(res);ws2["!cols"]=[{wch:22},{wch:30},{wch:14}];["B4","B5","B6"].forEach(a=>{if(ws2[a])ws2[a].z=z});for(let r=9;r<=res.length;r++){const cl=ws2["C"+r];if(cl)cl.z=z}
+  X.utils.book_append_sheet(wb,ws2,"Resumo");
+  await salvarArquivo("Caixa-"+slug(rotulo)+".xlsx",X.write(wb,{type:"array",bookType:"xlsx"}));
+}
+
+/* ---------- manutenção por km ---------- */
+function kmInfo(v){const km=+v.km||0,out=[];
+  [["oleo","Troca de óleo","oleoIntervalo","oleoUltimaKm"],["rev","Revisão","revIntervalo","revUltimaKm"]].forEach(([k,nome,iv,ul])=>{const I=+v[iv],U=+v[ul];if(!I||v[ul]==null||v[ul]==="")return;const resta=U+I-km,lim=Math.max(200,I*0.1);
+    if(resta<=0)out.push({k,txt:nome+" atrasada "+Math.abs(resta).toLocaleString("pt-BR")+" km",cls:"bad",prox:U+I});else if(resta<=lim)out.push({k,txt:nome+" em "+resta.toLocaleString("pt-BR")+" km",cls:"warn",prox:U+I});else out.push({k,txt:nome+" aos "+(U+I).toLocaleString("pt-BR")+" km",cls:"",prox:U+I})});
+  return out}
+function formKm(v){
+  openSheet("Atualizar quilometragem",'<div class="row">'+plateHtml(v)+'<div class="grow"><div class="t">'+esc([v.marca,v.modelo].filter(Boolean).join(" "))+'</div><div class="sub">Último registro: '+(v.km!=null?Number(v.km).toLocaleString("pt-BR")+" km":"—")+'</div></div></div>'+
+  '<fieldset><div class="grid">'+F("Km atual do painel","km",v.km,"number",'inputmode="numeric" min="0" class="full" required')+'</div></fieldset>',{kind:"km",id:v.id,col:"veiculos"});
+  const d=document.querySelector('[data-act="del"]');if(d)d.remove();
+}
+
+/* ---------- eventos ---------- */
+document.addEventListener("click",e=>{
+  const nb=e.target.closest("[data-view]");if(nb&&nb.closest("#nav"))return go(nb.dataset.view);
+  const vg=e.target.closest("[data-view-go]");if(vg)return go(vg.dataset.viewGo);
+  const a=e.target.closest("[data-act]");if(!a)return;
+  const act=a.dataset.act, id=a.dataset.id;
+  if(act==="close-bg"&&e.target!==a)return;
+  if(a.tagName==="A")return;
+  switch(act){
+    case "close":case "close-bg":return closeSheet();
+    case "del":return del();
+    case "mes-prev":mes=ymShift(mes,-1);return render();
+    case "mes-next":mes=ymShift(mes,1);return render();
+    case "new-veiculo":return formVeiculo();
+    case "edit-veiculo":return formVeiculo(byId("veiculos",id));
+    case "new-cliente":return formCliente();
+    case "edit-cliente":return formCliente(byId("clientes",id));
+    case "new-locacao":if(!S.veiculos.length||!S.clientes.length)return toast("Cadastre um veículo e um cliente primeiro.");return formLocacao();
+    case "edit-locacao":return formLocacao(byId("locacoes",id));
+    case "new-receita":return formLanc({tipo:"receita",categoria:MENS});
+    case "new-despesa":return formLanc({tipo:"despesa",categoria:DESP[1]});
+    case "manut":return formLanc({tipo:"despesa",categoria:"Manutenção",veiculoId:id||""});
+    case "quick":return formLanc({tipo:"receita",categoria:MENS});
+    case "edit-lanc":return formLanc(byId("lancamentos",id));
+    case "pagar":{const l=byId("locacoes",id);if(!l)return;const i=locInfo(l);return formLanc({tipo:"receita",categoria:MENS,locacaoId:l.id,veiculoId:l.veiculoId,valor:l.valor,data:todayIso(),descricao:"Pagamento referente a "+fd(i.prox)})}
+    case "clear-ex":return clearExamples();
+    case "empresa":return formEmpresa();
+    case "contrato":{const l=byId("locacoes",id);return l&&gerando(()=>pdfContrato(l))}
+    case "indicacao":{const m=byId("multas",id);return m&&gerando(()=>pdfIndicacao(m))}
+    case "recibo":{const t=byId("lancamentos",id);return t&&abrirRecibo(t)}
+    case "recibo-pdf":{const t=byId("lancamentos",id);return t&&gerando(()=>pdfRecibo(t))}
+    case "copiar":{const txt=a.dataset.txt;(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast("Texto copiado")).catch(()=>toast("Não deu para copiar automaticamente."));return}
+    case "export-caixa":{const[y,mm]=mes.split("-").map(Number);return exportarPlanilha(mes+"-01",iso(new Date(y,mm,0)),ymLabel(mes))}
+    case "export-per":return exportarPlanilha(per.ini,per.fim,perLabel(per));
+    case "km":{const v=byId("veiculos",id);return v&&formKm(v)}
+    case "per-prev":shiftPer(-1);return render();
+    case "per-next":shiftPer(1);return render();
+    case "per-hoje":per=periodoDe(per.modo==="livre"?"semana":per.modo,todayIso());return render();
+    case "del-lanc":
+      if(pendDel!==id){pendDel=id;clearTimeout(pendT);pendT=setTimeout(()=>{pendDel=null;render()},5000);return render()}
+      pendDel=null;clearTimeout(pendT);return delLanc(id).then(()=>toast("Lançamento excluído")).catch(dbErr);
+    case "new-multa":if(!S.veiculos.length)return toast("Cadastre um veículo primeiro.");return formMulta();
+    case "edit-multa":return formMulta(byId("multas",id));
+  }
+});
+document.addEventListener("change",e=>{
+  if(e.target.dataset.act==="filtro"){filtroTipo=e.target.value;render()}
+  if(e.target.dataset.act==="pmodo"){const m=e.target.value;if(m!=="livre")per=periodoDe(m,per.ini<=todayIso()&&todayIso()<=per.fim?todayIso():per.ini);else per={modo:"livre",ini:per.ini,fim:per.fim};render()}
+  if(e.target.id==="per-ini"||e.target.id==="per-fim"){let a=$("#per-ini").value,b=$("#per-fim").value;if(!a||!b)return;if(a>b){if(e.target.id==="per-ini")b=a;else a=b}if(days(a,b)>1100)return toast("Escolha um período de até 3 anos.");per={modo:"livre",ini:a,fim:b};render()}
+});
+/* dica ao passar o dedo ou o mouse sobre os gráficos */
+function showTip(r){const box=r.closest(".chartbox"),tip=box&&box.querySelector(".tip");if(!tip)return;tip.innerHTML=r.dataset.tip;tip.hidden=false;
+  const bb=box.getBoundingClientRect(),rb=r.getBoundingClientRect();let x=rb.left-bb.left+rb.width/2-tip.offsetWidth/2;x=Math.max(6,Math.min(bb.width-tip.offsetWidth-6,x));tip.style.left=x+"px";tip.style.top="6px";
+  const xh=box.querySelector(".xhair");if(xh&&r.dataset.x){xh.setAttribute("x1",r.dataset.x);xh.setAttribute("x2",r.dataset.x);xh.removeAttribute("hidden")}}
+function hideTip(box){if(!box)return;const t=box.querySelector(".tip");if(t)t.hidden=true;const xh=box.querySelector(".xhair");if(xh)xh.setAttribute("hidden","")}
+document.addEventListener("pointerover",e=>{const r=e.target.closest&&e.target.closest(".hit");if(r)showTip(r)});
+document.addEventListener("pointerout",e=>{const r=e.target.closest&&e.target.closest(".hit");if(r&&!(e.relatedTarget&&e.relatedTarget.closest&&e.relatedTarget.closest(".hit")))hideTip(r.closest(".chartbox"))});
+document.addEventListener("pointerdown",e=>{const r=e.target.closest&&e.target.closest(".hit");if(r)showTip(r);else document.querySelectorAll(".chartbox").forEach(hideTip)});
+let rzT,lastW=window.innerWidth;window.addEventListener("resize",()=>{clearTimeout(rzT);rzT=setTimeout(()=>{if(view==="painel"&&Math.abs(window.innerWidth-lastW)>20){lastW=window.innerWidth;render()}},200)});
+document.addEventListener("submit",e=>{e.preventDefault();save()});
+document.addEventListener("input",e=>{
+  if(e.target.id==="q-veiculos"){q.veiculos=e.target.value;$("#list").innerHTML=listVeiculos()}
+  if(e.target.id==="q-clientes"){q.clientes=e.target.value;$("#list").innerHTML=listClientes()}
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&sheet)closeSheet()});
+
+/* =====================================================================
+   Versão para venda: login, dados por empresa (Supabase), assinatura e
+   painel do administrador. Este bloco substitui o "banco de dados" do app
+   original e roda dentro do mesmo escopo.
+   ===================================================================== */
+const CFG=window.CONFIG||{};
+const PRECO=+CFG.PRECO||60;
+const configurado=CFG.SUPABASE_URL&&!/SEU-PROJETO/.test(CFG.SUPABASE_URL)&&CFG.SUPABASE_ANON_KEY&&!/COLE/.test(CFG.SUPABASE_ANON_KEY);
+const SB=configurado&&window.supabase?window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}}):null;
+let EMPRESA=null, ADMIN=false, USER=null, canal=null, ultimoLoad=0;
+document.querySelector(".head-ic").innerHTML=IC.gear;
+
+/* ---------- adaptador: mesma interface que o app já usa ---------- */
+const novoId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+function makeDb(eid){
+  const cache={}, subs={}, dsubs={};
+  let pronto=false;
+  const snapOf=c=>({docs:[...(cache[c]||new Map())].map(([id,d])=>({id,exists:true,data:()=>d,metadata:{fromCache:false,hasPendingWrites:false}})),size:(cache[c]||new Map()).size,metadata:{fromCache:false,hasPendingWrites:false}});
+  const docSnap=(c,id)=>{const d=cache[c]&&cache[c].get(id);return{id,exists:!!d,data:()=>d,metadata:{fromCache:false,hasPendingWrites:false}}};
+  const emit=c=>{if(!pronto)return;(subs[c]||[]).forEach(f=>f(snapOf(c)));Object.keys(dsubs).forEach(k=>{const[cc,id]=k.split("/");if(cc===c)dsubs[k].forEach(f=>f(docSnap(c,id)))})};
+  const put=(c,id,d)=>{(cache[c]=cache[c]||new Map()).set(id,d)};
+  const tira=(c,id)=>{if(cache[c])cache[c].delete(id)};
+  const erro=e=>{const msg=(e&&e.message)||"";const bloq=(e&&e.code==="42501")||/row-level security/i.test(msg);return{code:bloq?"blocked":"unavailable",message:msg}};
+  async function carregar(){
+    const novo={};let de=0;
+    for(;;){const{data,error}=await SB.from("registros").select("colecao,doc_id,dados").eq("empresa_id",eid).range(de,de+999);if(error)throw error;data.forEach(r=>{(novo[r.colecao]=novo[r.colecao]||new Map()).set(r.doc_id,r.dados)});if(data.length<1000)break;de+=1000}
+    Object.keys(cache).forEach(k=>delete cache[k]);Object.assign(cache,novo);pronto=true;ultimoLoad=Date.now();
+    new Set([...Object.keys(subs),...Object.keys(cache),...Object.keys(dsubs).map(k=>k.split("/")[0])]).forEach(emit);
+  }
+  async function gravar(c,id,d){const{error}=await SB.from("registros").upsert({empresa_id:eid,colecao:c,doc_id:id,dados:d});if(error)throw erro(error);put(c,id,d);emit(c)}
+  async function apagar(c,id){const{data,error}=await SB.from("registros").delete().match({empresa_id:eid,colecao:c,doc_id:id}).select("doc_id");if(error)throw erro(error);if(!data||!data.length){if(cache[c]&&cache[c].has(id))throw{code:"blocked"}}tira(c,id);emit(c)}
+  if(canal)SB.removeChannel(canal);
+  canal=SB.channel("reg-"+eid)
+    .on("postgres_changes",{event:"INSERT",schema:"public",table:"registros",filter:"empresa_id=eq."+eid},p=>{put(p.new.colecao,p.new.doc_id,p.new.dados);emit(p.new.colecao)})
+    .on("postgres_changes",{event:"UPDATE",schema:"public",table:"registros",filter:"empresa_id=eq."+eid},p=>{put(p.new.colecao,p.new.doc_id,p.new.dados);emit(p.new.colecao)})
+    .on("postgres_changes",{event:"DELETE",schema:"public",table:"registros"},p=>{const o=p.old||{};if(o.empresa_id!==eid)return;tira(o.colecao,o.doc_id);emit(o.colecao)})
+    .subscribe();
+  const api={
+    carregar,
+    collection(c){return{
+      onSnapshot(f,err){(subs[c]=subs[c]||[]).push(f);if(pronto)setTimeout(()=>f(snapOf(c)),0);return()=>{subs[c]=(subs[c]||[]).filter(x=>x!==f)}},
+      async add(d){const id=novoId();await gravar(c,id,d);return{id}},
+      doc(id){id=id||novoId();return{id,set:d=>gravar(c,id,d),delete:()=>apagar(c,id)}}
+    }},
+    doc(path){const[c,id]=path.split("/");return{
+      onSnapshot(f){const k=c+"/"+id;(dsubs[k]=dsubs[k]||[]).push(f);if(pronto)setTimeout(()=>f(docSnap(c,id)),0);return()=>{}},
+      set:d=>gravar(c,id,d)
+    }}
+  };
+  return api;
+}
+
+/* ---------- situação da assinatura ---------- */
+function acesso(){
+  if(!EMPRESA)return{ok:false};
+  const h=todayIso(),pago=EMPRESA.pago_ate?addDays(EMPRESA.pago_ate,3)>=h:false,teste=EMPRESA.trial_ate>=h;
+  if(EMPRESA.status==="bloqueada")return{ok:false,tipo:"bloqueada"};
+  if(pago&&EMPRESA.pago_ate>=h)return{ok:true,tipo:"ativa",ate:EMPRESA.pago_ate};
+  if(pago)return{ok:true,tipo:"tolerancia",ate:EMPRESA.pago_ate};
+  if(teste)return{ok:true,tipo:"teste",ate:EMPRESA.trial_ate,dias:days(h,EMPRESA.trial_ate)};
+  return{ok:false,tipo:"vencida",ate:EMPRESA.pago_ate||EMPRESA.trial_ate};
+}
+function bannerAcesso(){
+  const a=acesso();
+  if(a.tipo==="teste"&&EMPRESA.asaas_subscription_id)return '<div class="banner trial"><b>Teste grátis</b> até '+fd(a.ate)+'. Sua assinatura já está criada: a 1ª mensalidade vence no fim do teste. <button class="btn sm" data-act="assinatura">Ver fatura</button></div>';
+  if(a.tipo==="teste")return '<div class="banner trial"><b>Teste grátis:</b> '+(a.dias===0?"termina hoje":a.dias===1?"falta 1 dia":"faltam "+a.dias+" dias")+'. Assine por '+brl(PRECO)+'/mês para continuar usando. <button class="btn sm pri" data-act="assinatura">Assinar agora</button></div>';
+  if(a.tipo==="tolerancia")return '<div class="banner">Sua mensalidade venceu em '+fd(a.ate)+'. Pague nos próximos dias para não perder o acesso. <button class="btn sm pri" data-act="assinatura">Pagar agora</button></div>';
+  if(a.tipo==="vencida")return '<div class="banner"><b>Seu acesso venceu em '+fd(a.ate)+'.</b> Seus dados continuam guardados e você pode consultá-los, mas para lançar e editar é preciso '+(EMPRESA.asaas_subscription_id?"pagar a mensalidade":"assinar")+'. <button class="btn sm pri" data-act="assinatura">'+(EMPRESA.asaas_subscription_id?"Pagar agora":"Assinar")+'</button></div>';
+  if(a.tipo==="bloqueada")return '<div class="banner"><b>Acesso bloqueado.</b> Fale com o suporte para regularizar.</div>';
+  return "";
+}
+async function recarregarEmpresa(){if(!EMPRESA)return;const{data}=await SB.from("empresas").select("*").eq("id",EMPRESA.id).single();if(data){EMPRESA=data;readOnly=!acesso().ok;render()}}
+
+/* ---------- telas de entrada ---------- */
+const AUTH=$("#auth");
+function mostrarAuth(modo,msg){
+  document.body.classList.add("sem-login");AUTH.hidden=false;
+  const logo=document.querySelector("svg.brand-mark").outerHTML;
+  const erroCfg=!configurado?'<div class="banner">O sistema ainda não foi configurado. Preencha o arquivo <b>config.js</b> com os dados do Supabase (veja o LEIA-ME).</div>':"";
+  const forms={
+    entrar:'<h2>Entrar</h2><form id="fa" data-modo="entrar">'+F("E-mail","email","","email",'autocomplete="email" required')+F("Senha","senha","","password",'autocomplete="current-password" required')+'<button class="btn pri big" type="submit">Entrar</button></form><div class="auth-links"><button class="lnk" data-act="auth" data-modo="esqueci">Esqueci minha senha</button><span>Ainda não tem conta? <button class="lnk" data-act="auth" data-modo="criar">Teste grátis por 7 dias</button></span></div>',
+    criar:'<h2>Criar conta grátis</h2><p class="muted">7 dias grátis, sem cartão. Depois, '+brl(PRECO)+' por mês.</p><form id="fa" data-modo="criar">'+F("Nome da locadora","empresa","","text",'required autocomplete="organization"')+F("Seu nome","nome","","text",'required autocomplete="name"')+F("WhatsApp","telefone","","tel",'autocomplete="tel"')+F("E-mail","email","","email",'autocomplete="email" required')+F("Crie uma senha (mínimo 8 caracteres)","senha","","password",'autocomplete="new-password" minlength="8" required')+'<label class="f chk"><input type="checkbox" name="aceite" id="f-aceite"> Li e aceito os <a href="termos.html" target="_blank">Termos de Uso</a> e a <a href="privacidade.html" target="_blank">Política de Privacidade</a></label><button class="btn pri big" type="submit">Começar teste grátis</button></form><div class="auth-links"><span>Já tem conta? <button class="lnk" data-act="auth" data-modo="entrar">Entrar</button></span></div>',
+    esqueci:'<h2>Recuperar senha</h2><p class="muted">Enviaremos um link para você criar uma nova senha.</p><form id="fa" data-modo="esqueci">'+F("E-mail","email","","email",'autocomplete="email" required')+'<button class="btn pri big" type="submit">Enviar link</button></form><div class="auth-links"><button class="lnk" data-act="auth" data-modo="entrar">Voltar para o login</button></div>',
+    novasenha:'<h2>Nova senha</h2><form id="fa" data-modo="novasenha">'+F("Nova senha (mínimo 8 caracteres)","senha","","password",'autocomplete="new-password" minlength="8" required')+'<button class="btn pri big" type="submit">Salvar nova senha</button></form>',
+    aviso:'<h2>Confira seu e-mail</h2><p>'+(msg||"")+'</p><div class="auth-links"><button class="lnk" data-act="auth" data-modo="entrar">Ir para o login</button></div>'
+  };
+  AUTH.innerHTML='<div class="auth-wrap"><section class="auth-pitch"><div class="auth-brand">'+logo+'<div><h1>Gestão da Locadora</h1><p>Sistema para locadoras de carros e motos</p></div></div><ul><li>Cadastro de veículos, motoristas e CNH</li><li>Locações semanais, quinzenais ou mensais com aviso de atraso</li><li>Cobrança no WhatsApp, recibos e contrato em PDF</li><li>Multas atreladas ao condutor e indicação em PDF</li><li>Fluxo de caixa com gráficos e planilha para o contador</li><li>Alerta de troca de óleo e revisão por km</li></ul><p class="preco"><b>'+brl(PRECO)+'</b>/mês · 7 dias grátis</p></section><section class="auth-card">'+erroCfg+(modo!=="aviso"&&msg?'<div class="banner">'+esc(msg)+'</div>':"")+forms[modo]+'</section></div>';
+}
+function esconderAuth(){AUTH.hidden=true;AUTH.innerHTML="";document.body.classList.remove("sem-login")}
+const traduz=m=>/Invalid login/i.test(m)?"E-mail ou senha incorretos.":/Email not confirmed/i.test(m)?"Confirme seu e-mail pelo link que enviamos antes de entrar.":/already registered|already been registered/i.test(m)?"Já existe uma conta com este e-mail. Entre ou recupere a senha.":/Password should be/i.test(m)?"A senha precisa ter pelo menos 8 caracteres.":/rate limit|too many/i.test(m)?"Muitas tentativas. Aguarde alguns minutos.":/valid email|invalid format/i.test(m)?"Informe um e-mail válido.":"Não foi possível concluir. Tente de novo.";
+AUTH.addEventListener("submit",async e=>{
+  e.preventDefault();e.stopPropagation();if(!SB)return;
+  const f=e.target,modo=f.dataset.modo,o=Object.fromEntries(new FormData(f)),btn=f.querySelector("button[type=submit]");btn.disabled=true;
+  try{
+    if(modo==="entrar"){const{error}=await SB.auth.signInWithPassword({email:o.email.trim(),password:o.senha});if(error)throw error}
+    if(modo==="criar"){if(!$("#f-aceite").checked){btn.disabled=false;return toast("Para criar a conta, aceite os Termos e a Política de Privacidade.")}
+      const{data,error}=await SB.auth.signUp({email:o.email.trim(),password:o.senha,options:{emailRedirectTo:location.origin+location.pathname,data:{empresa:o.empresa,nome:o.nome,telefone:o.telefone}}});if(error)throw error;
+      if(!data.session)return mostrarAuth("aviso","Enviamos um link de confirmação para <b>"+esc(o.email)+"</b>. Abra o e-mail e toque no link para ativar sua conta.")}
+    if(modo==="esqueci"){const{error}=await SB.auth.resetPasswordForEmail(o.email.trim(),{redirectTo:location.origin+location.pathname});if(error)throw error;return mostrarAuth("aviso","Se existir uma conta com <b>"+esc(o.email)+"</b>, você vai receber um link para criar uma nova senha.")}
+    if(modo==="novasenha"){const{error}=await SB.auth.updateUser({password:o.senha});if(error)throw error;toast("Senha alterada");esconderAuth();iniciarSessao((await SB.auth.getSession()).data.session,true)}
+  }catch(err){btn.disabled=false;mostrarAuth(modo,traduz(err.message||""))}
+},true);
+
+/* ---------- sessão ---------- */
+let recuperando=false;
+async function iniciarSessao(session,forcar){
+  if(recuperando)return;
+  if(!session){USER=null;EMPRESA=null;db=null;mostrarAuth("entrar");return}
+  if(!forcar&&USER&&USER.id===session.user.id&&EMPRESA)return;
+  USER=session.user;
+  try{
+    const{data:m,error}=await SB.from("membros").select("empresa_id").eq("user_id",USER.id).limit(1);if(error)throw error;
+    if(!m||!m.length){mostrarAuth("entrar","Sua conta ainda não está ligada a uma locadora. Fale com o suporte.");return}
+    const{data:emp}=await SB.from("empresas").select("*").eq("id",m[0].empresa_id).single();EMPRESA=emp;
+    const{data:adm}=await SB.from("admins").select("user_id").eq("user_id",USER.id);ADMIN=!!(adm&&adm.length);
+    esconderAuth();
+    COLS.forEach(c=>S[c]=[]);EMP={};
+    db=makeDb(EMPRESA.id);readOnly=!acesso().ok;dbState="loading";render();
+    db.doc("config/empresa").onSnapshot(d=>{EMP=d.exists?Object.assign({},d.data()):{};render()});
+    COLS.forEach(c=>db.collection(c).onSnapshot(snap=>{S[c]=snap.docs.map(x=>Object.assign({id:x.id},x.data()));render()}));
+    await db.carregar();dbState="ok";
+    if(!EMP.nome&&EMPRESA.nome)EMP={nome:EMPRESA.nome,telefone:EMPRESA.telefone||"",responsavel:EMPRESA.responsavel||""};
+    render();
+  }catch(e){dbState="error";render()}
+}
+if(SB){
+  SB.auth.onAuthStateChange((ev,session)=>{
+    if(ev==="PASSWORD_RECOVERY"){recuperando=true;setTimeout(()=>{recuperando=false;mostrarAuth("novasenha")},0);return}
+    if(ev==="SIGNED_OUT"){setTimeout(()=>iniciarSessao(null),0);return}
+    setTimeout(()=>iniciarSessao(session),0);
+  });
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&db&&Date.now()-ultimoLoad>60000){db.carregar().catch(()=>{});recarregarEmpresa()}});
+}else mostrarAuth("entrar");
+
+/* ---------- menu, assinatura e administrador ---------- */
+function abrirFolha(titulo,html){
+  $("#sheet-root").innerHTML='<div class="sheet-bg" data-act="close-bg"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><div class="sheet-h"><h2 id="sheet-title">'+esc(titulo)+'</h2><button class="icon-btn" data-act="close" aria-label="Fechar">'+IC.close+'</button></div>'+html+'</div></div>';
+  sheet={kind:"info"};document.body.style.overflow="hidden";
+}
+function abrirMenu(){
+  const a=acesso();
+  abrirFolha("Menu",'<div class="menu">'+
+    '<button class="menu-i" data-act="empresa"><b>Dados da locadora</b><span>Nome, CNPJ, Pix e dados dos documentos</span></button>'+
+    '<button class="menu-i" data-act="assinatura"><b>Minha assinatura</b><span>'+({teste:"Teste grátis até "+fd(a.ate),ativa:"Ativa até "+fd(a.ate),tolerancia:"Vencida em "+fd(a.ate),vencida:"Vencida em "+fd(a.ate),bloqueada:"Bloqueada"}[a.tipo]||"")+'</span></button>'+
+    (ADMIN?'<button class="menu-i" data-act="ver-clientes"><b>Painel de clientes</b><span>Quem assina, quem está em teste e quem está atrasado</span></button>':"")+
+    '<a class="menu-i" href="termos.html" target="_blank"><b>Termos de uso e privacidade</b><span>Regras do serviço e tratamento de dados</span></a>'+
+    (CFG.WHATS_SUPORTE?'<a class="menu-i" href="https://wa.me/'+esc(foneWa(CFG.WHATS_SUPORTE))+'" target="_blank"><b>Falar com o suporte</b><span>WhatsApp</span></a>':"")+
+    '<button class="menu-i" data-act="sair"><b>Sair</b><span>'+esc(USER?USER.email:"")+'</span></button></div>');
+}
+async function abrirAssinatura(){
+  await recarregarEmpresa();const a=acesso(),tem=!!EMPRESA.asaas_subscription_id;
+  const{data:pg}=await SB.from("pagamentos").select("*").eq("empresa_id",EMPRESA.id).order("vencimento",{ascending:false}).limit(12);
+  const st={teste:["Teste grátis","warn","até "+fd(a.ate)],ativa:["Ativa","ok","paga até "+fd(a.ate)],tolerancia:["Vencida","bad","desde "+fd(a.ate)],vencida:["Vencida","bad","desde "+fd(a.ate)],bloqueada:["Bloqueada","bad",""]}[a.tipo]||["—","",""];
+  abrirFolha("Minha assinatura",
+    '<div class="card"><div class="row"><div class="grow"><div class="t">Plano mensal</div><div class="sub">'+brl(PRECO)+' por mês · Pix, boleto ou cartão</div></div><span class="chip '+st[1]+'">'+st[0]+'</span></div><div class="sub">'+esc(st[2])+'</div></div>'+
+    (tem?'<div class="actions" style="margin-top:14px"><button class="btn pri" data-act="fatura">Ver fatura em aberto</button><button class="btn" data-act="atualiza-assin">Já paguei, atualizar</button></div>'
+       :'<form id="fassin" style="margin-top:14px"><div class="note">Para emitir a cobrança, informe o CPF ou CNPJ de quem vai pagar. '+(a.tipo==="teste"?"A primeira mensalidade vence no fim do teste grátis.":"")+'</div><div class="grid">'+F("Nome de quem paga","nome",EMP.nome||EMPRESA.nome,"text",'class="full"')+F("CPF ou CNPJ","cpfCnpj",EMP.documento||"","text",'inputmode="numeric" required')+F("WhatsApp","telefone",EMP.telefone||EMPRESA.telefone||"","tel")+'</div><button class="btn pri" type="submit" style="margin-top:12px">Assinar por '+brl(PRECO)+'/mês</button></form>')+
+    '<div id="fatura-box"></div>'+
+    (pg&&pg.length?'<h3 style="margin:18px 0 8px;font-size:15px">Pagamentos</h3><div class="panel tbl-wrap"><table><thead><tr><th>Vencimento</th><th class="r">Valor</th><th>Situação</th></tr></thead><tbody>'+pg.map(p=>'<tr><td>'+fd(p.vencimento)+'</td><td class="r num">'+brl(p.valor)+'</td><td>'+esc({RECEIVED:"Pago",CONFIRMED:"Pago",PENDING:"Aguardando",OVERDUE:"Vencido",REFUNDED:"Estornado"}[p.status]||p.status)+'</td></tr>').join("")+'</tbody></table></div>':""));
+}
+async function pedirFatura(body){
+  const box=$("#fatura-box");if(box)box.innerHTML='<p class="muted" style="margin-top:12px">Gerando cobrança…</p>';
+  const{data,error}=await SB.functions.invoke("assinar",{body:body||{}});
+  let msg=data&&data.erro;if(error&&!msg){try{msg=(await error.context.json()).erro}catch(_){msg="Não foi possível gerar a cobrança agora."}}
+  if(msg){if(box)box.innerHTML='<div class="banner" style="margin-top:12px">'+esc(msg)+'</div>';return}
+  await recarregarEmpresa();
+  if(box)box.innerHTML=data.url?'<div class="card" style="margin-top:12px"><div class="t">Fatura de '+brl(data.valor||PRECO)+(data.vencimento?' · vence '+fd(data.vencimento):"")+'</div><div class="sub">Abra a fatura para pagar com Pix, boleto ou cartão. Assim que o pagamento for confirmado, o acesso é liberado sozinho.</div><a class="btn pri" href="'+esc(data.url)+'" target="_blank" rel="noopener">Abrir fatura e pagar</a></div>':'<div class="note" style="margin-top:12px">'+esc(data.mensagem||"Nenhuma fatura em aberto.")+'</div>';
+}
+document.addEventListener("submit",e=>{if(e.target.id==="fassin"){e.preventDefault();e.stopImmediatePropagation();const o=Object.fromEntries(new FormData(e.target));if(![11,14].includes(digits(o.cpfCnpj).length))return toast("Informe um CPF (11 números) ou CNPJ (14 números).");e.target.querySelector("button").disabled=true;pedirFatura(o)}},true);
+
+let ADM={lista:[],filtro:"todos"};
+async function carregarClientes(){const{data}=await SB.from("empresas").select("*").order("criado_em",{ascending:false});ADM.lista=data||[];render()}
+function situacao(e){const h=todayIso();if(e.status==="bloqueada")return["Bloqueada","bad"];if(e.pago_ate&&e.pago_ate>=h)return["Pagante","ok"];if(e.pago_ate&&addDays(e.pago_ate,3)>=h)return["Venceu ("+fd(e.pago_ate)+")","warn"];if(e.trial_ate>=h)return["Teste até "+fd(e.trial_ate),"warn"];return["Inativa","bad"]}
+function vClientesAdmin(){
+  const l=ADM.lista,h=todayIso();
+  const pag=l.filter(e=>e.pago_ate&&addDays(e.pago_ate,3)>=h&&e.status!=="bloqueada"),tes=l.filter(e=>!(e.pago_ate&&addDays(e.pago_ate,3)>=h)&&e.trial_ate>=h);
+  const filt=ADM.filtro==="pagantes"?pag:ADM.filtro==="teste"?tes:ADM.filtro==="inativos"?l.filter(e=>!pag.includes(e)&&!tes.includes(e)):l;
+  return '<section class="sec"><div class="sec-h"><h2>Painel de clientes</h2><button class="btn sm" data-act="ver-clientes">Atualizar</button></div>'+
+  '<div class="kpis k4"><div class="kpi"><span class="eyebrow">Contas</span><b class="num">'+l.length+'</b></div><div class="kpi"><span class="eyebrow">Pagantes</span><b class="num">'+pag.length+'</b></div><div class="kpi"><span class="eyebrow">Em teste</span><b class="num">'+tes.length+'</b></div><div class="kpi"><span class="eyebrow">Receita mensal</span><b class="num">'+brl(pag.length*PRECO)+'</b></div></div>'+
+  '<div class="seg" role="radiogroup">'+[["todos","Todos"],["pagantes","Pagantes"],["teste","Em teste"],["inativos","Inativos"]].map(([k,t])=>'<label><input type="radio" name="admf" value="'+k+'" data-act="admf"'+(ADM.filtro===k?" checked":"")+'><span>'+t+'</span></label>').join("")+'</div></section>'+
+  '<section class="sec"><div class="list">'+(filt.length?filt.map(e=>{const s=situacao(e);return '<article class="card"><div class="row"><div class="grow"><div class="t">'+esc(e.nome)+'</div><div class="sub ellip">'+esc([e.responsavel,e.email].filter(Boolean).join(" · "))+'</div></div><span class="chip '+s[1]+'">'+esc(s[0])+'</span></div><div class="sub">Conta criada em '+fd((e.criado_em||"").slice(0,10))+(e.asaas_subscription_id?" · assinatura no Asaas":" · sem assinatura")+'</div><div class="actions">'+(e.telefone?'<a class="btn sm wa" href="https://wa.me/'+esc(foneWa(e.telefone))+'" target="_blank" rel="noopener">'+IC.wa+'WhatsApp</a>':"")+'<button class="btn sm" data-act="adm-30" data-id="'+e.id+'">Liberar +30 dias</button><button class="btn sm '+(e.status==="bloqueada"?"":"danger")+'" data-act="adm-bloq" data-id="'+e.id+'">'+(e.status==="bloqueada"?"Desbloquear":"Bloquear")+'</button></div></article>'}).join(""):'<div class="empty">Nenhuma conta neste filtro.</div>')+'</div></section>';
+}
+VIEWS.adm=vClientesAdmin;
+async function admAltera(id,patch,ok){const{error}=await SB.from("empresas").update(patch).eq("id",id);if(error)return toast("Não foi possível alterar.");toast(ok);carregarClientes()}
+
+document.addEventListener("click",e=>{
+  const a=e.target.closest("[data-act]");if(!a)return;const act=a.dataset.act,id=a.dataset.id;
+  const tratar={
+    menu:()=>abrirMenu(),
+    assinatura:()=>abrirAssinatura(),
+    fatura:()=>pedirFatura(),
+    "atualiza-assin":async()=>{await recarregarEmpresa();toast(acesso().tipo==="ativa"?"Pagamento confirmado. Obrigado!":"Ainda não recebemos a confirmação. Pix confirma em minutos; boleto pode levar até 3 dias úteis.");abrirAssinatura()},
+    sair:async()=>{closeSheet();await SB.auth.signOut()},
+    auth:()=>mostrarAuth(a.dataset.modo),
+    "ver-clientes":()=>{closeSheet();view="adm";carregarClientes();render();window.scrollTo(0,0)},
+    "adm-30":()=>{const x=ADM.lista.find(z=>z.id===id);const base=x.pago_ate&&x.pago_ate>todayIso()?x.pago_ate:todayIso();admAltera(id,{pago_ate:addDays(base,30),status:"ativa"},"Acesso liberado por mais 30 dias")},
+    "adm-bloq":()=>{const x=ADM.lista.find(z=>z.id===id);admAltera(id,{status:x.status==="bloqueada"?"ativa":"bloqueada"},x.status==="bloqueada"?"Conta desbloqueada":"Conta bloqueada")}
+  };
+  if(tratar[act]){e.preventDefault();e.stopImmediatePropagation();if(act==="assinatura"||act==="empresa")closeSheet();tratar[act]()}
+},true);
+document.addEventListener("change",e=>{if(e.target.dataset.act==="admf"){ADM.filtro=e.target.value;render()}});
+
+})();
+</script>
+
+</body>
+</html>
