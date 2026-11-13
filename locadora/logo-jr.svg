@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="130 -10 1710 1750" role="img" aria-label="JR">
+  <path d="M985 4 L1662 189 L1662 800 Q1662 925 1625 1000 L345 1000 Q308 925 308 800 L308 189 Z" fill="#283447" stroke="#3A3B3F" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M985 122 L1562 279 L1562 800 Q1562 880 1545 940 L430 940 Q410 880 410 800 L410 279 Z" fill="#2B2D33"/>
+  <text x="985" y="632" text-anchor="middle" font-family="Archivo, 'Arial Black', Arial, sans-serif" font-weight="800" font-size="530" letter-spacing="-10" fill="#E4E4E8">JR</text>
+  <path d="M150 1180 Q985 300 1818 1172 Q985 2262 150 1180 Z" fill="#283447" stroke="#3A3B3F" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M276 1180 Q985 470 1694 1180 Q985 2100 276 1180 Z" fill="#2B2D33"/>
+  <circle cx="985" cy="1185" r="310" fill="#283447"/>
+  <circle cx="985" cy="1185" r="202" fill="#2B2D33"/>
+  <path d="M1110 940 A275 275 0 0 1 925 1455" fill="none" stroke="#E4E4E8" stroke-width="108"/>
+  <circle cx="1058" cy="1118" r="58" fill="#8E5A57"/>
+</svg>

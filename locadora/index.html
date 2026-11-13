@@ -5,43 +5,47 @@
 <style>
 /* Layout: app de bolso — cabeçalho fixo, conteúdo em coluna única (até 960px), navegação inferior; formulários abrem numa folha deslizante. */
 :root{
-  --bg:#F2F5F4; --surface:#FFFFFF; --surface2:#E7EDEB; --line:#D3DCD9;
-  --fg:#13201C; --muted:#56675F; --accent:#0B6B5B; --accent-fg:#FFFFFF; --accent-soft:#D3ECE5;
-  --in:#0D7A44; --out:#B3261E; --warn:#9A5600; --warn-soft:#FBEACF; --bad-soft:#F8DCD9;
-  --plate-bg:#FFFFFF; --plate-fg:#111111; --plate-band:#0A3A9C; --plate-line:#9AA5A1;
-  --shadow:0 10px 30px rgba(10,40,34,.18);
+  --bg:#EDEFF3; --surface:#FFFFFF; --surface2:#E3E7EE; --line:#D2D8E1;
+  --fg:#1D222B; --muted:#5A6272; --accent:#283447; --accent-fg:#FFFFFF; --accent-soft:#DCE3EE;
+  --brand-red:#8E5A57; --head-bg:#2B2D33; --head-fg:#E4E4E8; --head-muted:#A3A8B4;
+  --in:#1E7A4C; --out:#B3261E; --warn:#9A5600; --warn-soft:#FBEACF; --bad-soft:#F8DCD9;
+  --plate-bg:#FFFFFF; --plate-fg:#111111; --plate-band:#0A3A9C; --plate-line:#9AA3B0;
+  --shadow:0 10px 30px rgba(20,26,40,.2);
   --f-display:"Archivo", "Helvetica Neue", Arial, sans-serif;
   --f-body:"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --f-mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0D1412; --surface:#151F1C; --surface2:#1C2925; --line:#2A3934;
-  --fg:#E4EDEA; --muted:#93A69F; --accent:#52C2A8; --accent-fg:#05221C; --accent-soft:#15352D;
-  --in:#4FCB8C; --out:#F2877E; --warn:#F0B45C; --warn-soft:#3A2A11; --bad-soft:#3E1D1A;
-  --plate-line:#5d6b67; --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
+  --bg:#1B1D22; --surface:#24272E; --surface2:#2D3139; --line:#3A3F49;
+  --fg:#E4E4E8; --muted:#9BA1AE; --accent:#8FA6CB; --accent-fg:#141A24; --accent-soft:#2C3648;
+  --brand-red:#B07A76; --head-bg:#24262C; --head-fg:#E4E4E8; --head-muted:#9BA1AE;
+  --in:#55C98F; --out:#F2877E; --warn:#F0B45C; --warn-soft:#3A2A11; --bad-soft:#3E1D1A;
+  --plate-line:#5D6470; --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
 }}
 :root[data-theme="dark"]{
-  --bg:#0D1412; --surface:#151F1C; --surface2:#1C2925; --line:#2A3934;
-  --fg:#E4EDEA; --muted:#93A69F; --accent:#52C2A8; --accent-fg:#05221C; --accent-soft:#15352D;
-  --in:#4FCB8C; --out:#F2877E; --warn:#F0B45C; --warn-soft:#3A2A11; --bad-soft:#3E1D1A;
-  --plate-line:#5d6b67; --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
+  --bg:#1B1D22; --surface:#24272E; --surface2:#2D3139; --line:#3A3F49;
+  --fg:#E4E4E8; --muted:#9BA1AE; --accent:#8FA6CB; --accent-fg:#141A24; --accent-soft:#2C3648;
+  --brand-red:#B07A76; --head-bg:#24262C; --head-fg:#E4E4E8; --head-muted:#9BA1AE;
+  --in:#55C98F; --out:#F2877E; --warn:#F0B45C; --warn-soft:#3A2A11; --bad-soft:#3E1D1A;
+  --plate-line:#5D6470; --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{background:var(--bg);color:var(--fg)}
 body{font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--head-bg)}
 h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .num{font-variant-numeric:tabular-nums}
 
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--head-bg);color:var(--head-fg);border-bottom:3px solid var(--accent)}
 .top-in,.wrap{max-width:960px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.top-in{display:flex;align-items:center;gap:12px;padding-block:12px}
+.top-in{display:flex;align-items:center;gap:12px;padding-block:10px}
+.top .btn.pri{background:var(--brand-red);border-color:var(--brand-red);color:#FFFFFF}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
-.brand-mark{width:34px;height:34px;border-radius:9px;background:var(--accent);color:var(--accent-fg);display:grid;place-items:center;flex:none}
+.brand-mark{width:54px;height:54px;flex:none;display:block;background:#E4E4E8;border-radius:13px;padding:4px}
 .brand h1{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.brand small{display:block;color:var(--muted);font-size:12px;font-family:var(--f-body)}
+.brand small{display:block;color:var(--head-muted);font-size:12px;font-family:var(--f-body)}
 .top .sp{flex:1}
 .wrap{padding-block:18px calc(96px + env(safe-area-inset-bottom,0px))}
 
@@ -170,8 +174,18 @@ label.f textarea{min-height:64px;resize:vertical}
 <header class="top">
   <div class="top-in">
     <div class="brand">
-      <div class="brand-mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M6 17l1.5-6.5A2 2 0 0 1 9.4 9h5.2a2 2 0 0 1 1.9 1.5L18 17"/><circle cx="8" cy="17" r="2"/><circle cx="16" cy="17" r="2"/></svg></div>
-      <div><h1>Gestão da Locadora</h1><small id="sync">Conectando…</small></div>
+      <svg class="brand-mark" viewBox="130 -10 1710 1750" role="img" aria-label="Logo JR">
+  <path d="M985 4 L1662 189 L1662 800 Q1662 925 1625 1000 L345 1000 Q308 925 308 800 L308 189 Z" fill="#283447" stroke="#3A3B3F" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M985 122 L1562 279 L1562 800 Q1562 880 1545 940 L430 940 Q410 880 410 800 L410 279 Z" fill="#2B2D33"/>
+  <text x="985" y="632" text-anchor="middle" font-family="Archivo, 'Arial Black', Arial, sans-serif" font-weight="800" font-size="530" letter-spacing="-10" fill="#E4E4E8">JR</text>
+  <path d="M150 1180 Q985 300 1818 1172 Q985 2262 150 1180 Z" fill="#283447" stroke="#3A3B3F" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M276 1180 Q985 470 1694 1180 Q985 2100 276 1180 Z" fill="#2B2D33"/>
+  <circle cx="985" cy="1185" r="310" fill="#283447"/>
+  <circle cx="985" cy="1185" r="202" fill="#2B2D33"/>
+  <path d="M1110 940 A275 275 0 0 1 925 1455" fill="none" stroke="#E4E4E8" stroke-width="108"/>
+  <circle cx="1058" cy="1118" r="58" fill="#8E5A57"/>
+</svg>
+      <div style="min-width:0"><h1>Gestão da Locadora</h1><small id="sync">Conectando…</small></div>
     </div>
     <div class="sp"></div>
     <button class="btn pri sm" data-act="quick" id="quick-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Lançar</button>
