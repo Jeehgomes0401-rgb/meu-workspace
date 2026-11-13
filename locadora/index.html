@@ -274,7 +274,7 @@ const FREQ={semanal:"semana",quinzenal:"quinzena",mensal:"mês"};
 /* ---------- estado ---------- */
 const COLS=["veiculos","clientes","locacoes","lancamentos","multas"];
 const S={veiculos:[],clientes:[],locacoes:[],lancamentos:[],multas:[]};
-let db=null, view="painel", mes=ymNow(), q={veiculos:"",clientes:""}, loaded=new Set(), dbState="loading", readOnly=false, filtroTipo="todos";
+let pendDel=null, pendT=null, db=null, view="painel", mes=ymNow(), q={veiculos:"",clientes:""}, loaded=new Set(), dbState="loading", readOnly=false, filtroTipo="todos";
 try{const v=localStorage.getItem("loc_view");if(v)view=v}catch(e){}
 
 const byId=(col,id)=>S[col].find(x=>x.id===id);
@@ -283,18 +283,24 @@ const locAtiva=vId=>S.locacoes.find(l=>l.veiculoId===vId&&l.status!=="encerrada"
 const veicStatus=v=>locAtiva(v.id)?"alugado":(v.status==="manutencao"?"manutencao":"disponivel");
 const STATUS_TXT={alugado:["Alugado","ok"],disponivel:["Disponível",""],manutencao:["Em manutenção","warn"]};
 
+/* "1 dia vencido", "2 semanas vencidas", "1 semana e 3 dias vencidos", "1 mês, 1 semana e 2 dias vencidos" */
+function tempoPartes(d){const m=Math.floor(d/30),r=d%30,w=Math.floor(r/7),dd=r%7,p=[];
+  if(m)p.push([m,m===1?"mês":"meses","m"]);if(w)p.push([w,w===1?"semana":"semanas","f"]);if(dd)p.push([dd,dd===1?"dia":"dias","m"]);return p}
+function tempoTxt(d){const p=tempoPartes(d).map(x=>x[0]+" "+x[1]);return p.length>1?p.slice(0,-1).join(", ")+" e "+p[p.length-1]:p[0]||"0 dias"}
+function vencidoTxt(d){const p=tempoPartes(d);let suf;if(p.length===1){const[n,,g]=p[0];suf=g==="f"?(n===1?"vencida":"vencidas"):(n===1?"vencido":"vencidos")}else suf="vencidos";return tempoTxt(d)+" "+suf}
+function venceTxt(d){return d===0?"Vence hoje":d===1?"Vence amanhã":"Vence em "+tempoTxt(d)}
 function cnhInfo(c){
   if(!c.cnhValidade)return null;
   const d=days(todayIso(),c.cnhValidade);
-  if(d<0)return{txt:"CNH vencida há "+(-d)+" dia"+(d===-1?"":"s"),cls:"bad",d};
-  if(d<=30)return{txt:"CNH vence em "+d+" dia"+(d===1?"":"s"),cls:"warn",d};
+  if(d<0)return{txt:"CNH vencida há "+tempoTxt(-d),cls:"bad",d};
+  if(d<=30)return{txt:"CNH "+venceTxt(d).toLowerCase(),cls:"warn",d};
   return{txt:"CNH válida até "+fd(c.cnhValidade),cls:"ok",d};
 }
 function multaInfo(m){
   if(m.pagamento==="paga"){return m.cobranca==="a_cobrar"?{txt:"Cobrar do condutor",cls:"warn"}:{txt:"Paga",cls:"ok"}}
   if(!m.vencimento)return{txt:"Em aberto",cls:""};
   const d=days(todayIso(),m.vencimento);
-  return d<0?{txt:"Vencida há "+(-d)+" dia"+(d===-1?"":"s"),cls:"bad",d}:d<=7?{txt:d===0?"Vence hoje":"Vence em "+d+" dia"+(d===1?"":"s"),cls:"warn",d}:{txt:"Vence "+fd(m.vencimento),cls:"",d};
+  return d<0?{txt:vencidoTxt(-d).replace(/^./,c=>c.toUpperCase()),cls:"bad",d}:d<=7?{txt:venceTxt(d),cls:"warn",d}:{txt:"Vence "+fd(m.vencimento),cls:"",d};
 }
 function indicInfo(m){
   if(m.condutorIndicado||!m.prazoIndicacao)return null;
@@ -308,9 +314,13 @@ function locInfo(l){
   const pagos=S.lancamentos.filter(t=>t.tipo==="receita"&&t.locacaoId===l.id&&t.categoria===MENS);
   const total=pagos.reduce((a,t)=>a+(+t.valor||0),0);
   const prox=l.inicio?addPeriod(l.inicio,l.frequencia||"mensal",pagos.length):null;
-  let st=null;
-  if(l.status!=="encerrada"&&prox){const d=days(todayIso(),prox);st=d<0?{txt:"Atrasado "+(-d)+" dia"+(d===-1?"":"s"),cls:"bad",d}:d<=2?{txt:d===0?"Vence hoje":"Vence em "+d+" dia"+(d===1?"":"s"),cls:"warn",d}:{txt:"Em dia",cls:"ok",d}}
-  return{pagos:pagos.length,total,prox,st};
+  let st=null, abertas=0;
+  if(l.status!=="encerrada"&&prox){
+    const hoje=todayIso();while(abertas<300&&addPeriod(l.inicio,l.frequencia||"mensal",pagos.length+abertas)<hoje)abertas++;
+    const d=days(hoje,prox);
+    st=d<0?{txt:vencidoTxt(-d).replace(/^./,c=>c.toUpperCase()),cls:"bad",d}:d<=3?{txt:venceTxt(d),cls:"warn",d}:{txt:"Em dia",cls:"ok",d};
+  }
+  return{pagos:pagos.length,total,prox,st,abertas,devido:abertas*(+l.valor||0)};
 }
 const txOfMonth=ym=>S.lancamentos.filter(t=>ymOf(t.data)===ym);
 const sumT=(arr,tipo)=>arr.filter(t=>t.tipo===tipo).reduce((a,t)=>a+(+t.valor||0),0);
@@ -321,6 +331,7 @@ const IC={
   inn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7 7 7-7"/></svg>',
   out:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7-7 7 7"/></svg>',
   wrench:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8V21h3.2l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.4-.4-.4-2.4z"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
   close:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
   l:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
   r:'<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
@@ -333,7 +344,7 @@ function vPainel(){
   const tx=txOfMonth(mes), ent=sumT(tx,"receita"), sai=sumT(tx,"despesa"), bal=ent-sai;
   const st={alugado:0,disponivel:0,manutencao:0};S.veiculos.forEach(v=>st[veicStatus(v)]++);
   const alerts=[];
-  S.locacoes.filter(l=>l.status!=="encerrada").forEach(l=>{const i=locInfo(l);if(i.st&&i.st.cls!=="ok"){const c=byId("clientes",l.clienteId);alerts.push({cls:i.st.cls,html:'<b>'+esc(i.st.txt)+'</b> · '+esc(c?c.nome:"Cliente")+' — '+esc(veicLabel(byId("veiculos",l.veiculoId)))+'<div class="sub">Próximo pagamento: '+fd(i.prox)+' · '+brl(l.valor)+' por '+FREQ[l.frequencia||"mensal"]+'</div>',act:'<button class="btn sm" data-act="pagar" data-id="'+l.id+'">Registrar pagamento</button>'})}});
+  S.locacoes.filter(l=>l.status!=="encerrada").forEach(l=>{const i=locInfo(l);if(i.st&&i.st.cls!=="ok"){const c=byId("clientes",l.clienteId);alerts.push({cls:i.st.cls,html:'<b>'+esc(i.st.txt)+'</b> · '+esc(c?c.nome:"Cliente")+' — '+esc(veicLabel(byId("veiculos",l.veiculoId)))+'<div class="sub">'+(i.abertas?'<b style="color:var(--out)">'+i.abertas+' parcela'+(i.abertas===1?"":"s")+' em aberto · '+brl(i.devido)+'</b> · ':'')+'Vencimento: '+fd(i.prox)+' · '+brl(l.valor)+' por '+FREQ[l.frequencia||"mensal"]+'</div>',act:'<button class="btn sm" data-act="pagar" data-id="'+l.id+'">Registrar pagamento</button>'})}});
   S.clientes.forEach(c=>{const i=cnhInfo(c);if(i&&i.cls!=="ok")alerts.push({cls:i.cls,html:'<b>'+esc(i.txt)+'</b> · '+esc(c.nome)+'<div class="sub">CNH '+esc(c.cnhNumero||"")+' categoria '+esc(c.cnhCategoria||"—")+'</div>',act:'<button class="btn sm" data-act="edit-cliente" data-id="'+c.id+'">Atualizar</button>'})});
   S.multas.forEach(m=>{const c=byId("clientes",m.clienteId),v=byId("veiculos",m.veiculoId),base=esc(infrTxt(m))+' · '+esc(v?v.placa:"")+(c?" · "+esc(c.nome):"");
     const ii=indicInfo(m);if(ii)alerts.push({cls:ii.cls,html:'<b>'+esc(ii.txt)+'</b> · '+base+'<div class="sub">Prazo: '+fd(m.prazoIndicacao)+'</div>',act:'<button class="btn sm" data-act="edit-multa" data-id="'+m.id+'">Abrir multa</button>'});
@@ -368,7 +379,7 @@ function txRow(t){
   const v=byId("veiculos",t.veiculoId), c=byId("clientes",t.clienteId), isIn=t.tipo==="receita";
   const det=[fd(t.data),v?v.placa:"",c?c.nome.split(" ")[0]:"",t.formaPagamento].filter(Boolean).join(" · ");
   const extra=t.categoria==="Manutenção"&&(t.pecas||t.maoDeObra)?'<div class="sub">Peças '+brl(t.pecas)+' · Mão de obra '+brl(t.maoDeObra)+'</div>':"";
-  return '<div class="tx"><div class="tx-ic '+(isIn?"in":"out")+'">'+(t.categoria==="Manutenção"?IC.wrench:isIn?IC.inn:IC.out)+'</div><div style="min-width:0"><div class="t ellip">'+esc(t.descricao||t.categoria)+exChip(t)+'</div><div class="sub ellip">'+esc(t.descricao?t.categoria+" · "+det:det)+'</div>'+extra+'</div><div style="display:flex;align-items:center;gap:2px"><span class="money '+(isIn?"in":"out")+'">'+(isIn?"+ ":"− ")+brl(t.valor)+'</span><button class="icon-btn" data-act="edit-lanc" data-id="'+t.id+'" aria-label="Editar lançamento">'+IC.edit+'</button></div></div>';
+  return '<div class="tx"><div class="tx-ic '+(isIn?"in":"out")+'">'+(t.categoria==="Manutenção"?IC.wrench:isIn?IC.inn:IC.out)+'</div><div style="min-width:0;cursor:pointer" data-act="edit-lanc" data-id="'+t.id+'"><div class="t ellip">'+esc(t.descricao||t.categoria)+exChip(t)+'</div><div class="sub ellip">'+esc(t.descricao?t.categoria+" · "+det:det)+'</div>'+extra+'</div><div style="display:grid;justify-items:end;gap:2px"><span class="money '+(isIn?"in":"out")+'">'+(isIn?"+ ":"− ")+brl(t.valor)+'</span><div style="display:flex;gap:2px"><button class="icon-btn" data-act="edit-lanc" data-id="'+t.id+'" aria-label="Editar lançamento">'+IC.edit+'</button>'+(pendDel===t.id?'<button class="btn sm danger" data-act="del-lanc" data-id="'+t.id+'" style="border-color:var(--out)">Confirmar exclusão</button>':'<button class="icon-btn" data-act="del-lanc" data-id="'+t.id+'" aria-label="Excluir lançamento">'+IC.trash+'</button>')+'</div></div></div>';
 }
 
 function vVeiculos(){
@@ -411,8 +422,8 @@ function vLocacoes(){
   const at=S.locacoes.filter(l=>l.status!=="encerrada"), enc=S.locacoes.filter(l=>l.status==="encerrada");
   const card=l=>{const c=byId("clientes",l.clienteId), v=byId("veiculos",l.veiculoId), i=locInfo(l);
     return '<article class="card"><div class="row">'+(v?plateHtml(v):"")+'<div class="grow"><div class="t ellip">'+esc(c?c.nome:"Cliente removido")+exChip(l)+'</div><div class="sub ellip">'+esc(v?[v.marca,v.modelo].filter(Boolean).join(" "):"Veículo removido")+'</div></div>'+(i.st?'<span class="chip '+i.st.cls+'">'+esc(i.st.txt)+'</span>':'<span class="chip">Encerrada</span>')+'</div>'+
-    '<div class="sub num"><b style="color:var(--fg)">'+brl(l.valor)+'</b> por '+FREQ[l.frequencia||"mensal"]+' · desde '+fd(l.inicio)+(l.status==="encerrada"&&l.fim?" até "+fd(l.fim):"")+(l.caucao?" · caução "+brl(l.caucao):"")+'</div>'+
-    '<div class="sub num">'+i.pagos+' pagamento'+(i.pagos===1?"":"s")+' · total '+brl(i.total)+(l.status!=="encerrada"?' · próximo em <b style="color:var(--fg)">'+fd(i.prox)+'</b>':"")+'</div>'+
+    '<div class="sub num"><span class="chip">'+({semanal:"Semanal",quinzenal:"Quinzenal",mensal:"Mensal"}[l.frequencia||"mensal"])+'</span> <b style="color:var(--fg)">'+brl(l.valor)+'</b> por '+FREQ[l.frequencia||"mensal"]+' · desde '+fd(l.inicio)+(l.status==="encerrada"&&l.fim?" até "+fd(l.fim):"")+(l.caucao?" · caução "+brl(l.caucao):"")+'</div>'+
+    '<div class="sub num">'+i.pagos+' pagamento'+(i.pagos===1?"":"s")+' · total '+brl(i.total)+(l.status!=="encerrada"?' · próximo vencimento <b style="color:var(--fg)">'+fd(i.prox)+'</b>':"")+'</div>'+(i.abertas?'<div class="sub"><b style="color:var(--out)">'+i.abertas+' parcela'+(i.abertas===1?"":"s")+' em aberto · '+brl(i.devido)+' a receber</b></div>':"")+
     '<div class="actions">'+(l.status!=="encerrada"?'<button class="btn sm pri" data-act="pagar" data-id="'+l.id+'">Registrar pagamento</button>':"")+'<button class="btn sm" data-act="edit-locacao" data-id="'+l.id+'">'+IC.edit+'Editar</button></div></article>'};
   const canNew=S.veiculos.length&&S.clientes.length;
   return '<section class="sec"><div class="sec-h"><h2>Locações ativas</h2><button class="btn pri" data-act="new-locacao">+ Nova locação</button></div>'+
@@ -513,8 +524,9 @@ function formLocacao(l){l=l||{frequencia:"semanal",inicio:todayIso(),status:"ati
   openSheet(l.id?"Editar locação":"Nova locação",
   '<fieldset><div class="grid">'+Sel("Cliente","clienteId",l.clienteId,[["","Escolha o cliente"],...S.clientes.map(c=>[c.id,c.nome])],"full")+
   Sel("Veículo","veiculoId",l.veiculoId,[["",vs.length?"Escolha o veículo":"Nenhum veículo disponível"],...vs.map(v=>[v.id,veicLabel(v)])],"full")+
-  F("Valor (R$)","valor",l.valor,"number",'inputmode="decimal" step="0.01" min="0"')+Sel("Cobrança","frequencia",l.frequencia,[["semanal","Semanal"],["quinzenal","Quinzenal"],["mensal","Mensal"]])+
-  F("Data de início","inicio",l.inicio,"date")+F("Caução (R$)","caucao",l.caucao,"number",'inputmode="decimal" step="0.01" min="0"')+
+  '<div class="full" style="display:grid;gap:6px"><span class="hint" style="font-weight:600;font-size:13px">Forma de cobrança</span>'+Seg("frequencia",l.frequencia||"semanal",[["semanal","Semanal"],["quinzenal","Quinzenal"],["mensal","Mensal"]])+'</div>'+
+  F("Valor por parcela (R$)","valor",l.valor,"number",'inputmode="decimal" step="0.01" min="0"')+
+  F("Data de início (1º vencimento)","inicio",l.inicio,"date")+F("Caução (R$)","caucao",l.caucao,"number",'inputmode="decimal" step="0.01" min="0"')+'<div class="note full" id="h-venc"></div>'+
   Sel("Situação","status",l.status||"ativa",[["ativa","Ativa"],["encerrada","Encerrada"]])+F("Data de devolução","fim",l.fim,"date")+
   F("Km na retirada","kmInicio",l.kmInicio,"number",'inputmode="numeric" min="0"')+F("Km na devolução","kmFim",l.kmFim,"number",'inputmode="numeric" min="0"')+
   '<div class="note full">Cada pagamento lançado como “Mensalidade / aluguel” desta locação cobre uma '+'semana, quinzena ou mês, a partir da data de início. É assim que o app sabe quem está em dia.</div>'+
@@ -579,6 +591,7 @@ function wireLive(){
     const p=$("#f-placa");if(p){const h=$("#h-placa"),v=normPlate(p.value);h.className="hint full "+(v?plateOk(v)?"ok":"bad":"");h.textContent=v?plateOk(v)?"Placa "+plateKind(v)+" válida":"Formato esperado: ABC1D23 (Mercosul) ou ABC1234":""}
     const ch=$("#f-chassi");if(ch){const h=$("#h-chassi"),v=ch.value.replace(/\s/g,"");if(!v){h.textContent="";h.className="hint full"}else if(v.length!==17){h.className="hint full bad";h.textContent="O chassi tem 17 caracteres ("+v.length+" digitados)"}else{const d=decodeVin(v);h.className="hint full ok";h.textContent="Chassi reconhecido"+(d.marca?" · fabricante "+d.marca:"")+(d.ano?" · ano-modelo "+d.ano:"");}}
     const cpf=$("#f-cpf");if(cpf){const h=$("#h-cpf"),d=digits(cpf.value);h.className="hint full "+(d?cpfOk(d)?"ok":"bad":"");h.textContent=d?cpfOk(d)?"CPF válido":d.length<11?"CPF incompleto":"CPF inválido: confira os números":""}
+    const hv=$("#h-venc");if(hv){const ini=$("#f-inicio").value,fr=(document.querySelector('#frm input[name=frequencia]:checked')||{}).value||"mensal",pg=sheet&&sheet.id?locInfo(byId("locacoes",sheet.id)||{}).pagos||0:0;hv.innerHTML=ini?'<b>Próximos vencimentos:</b> '+[0,1,2,3].map(k=>fd(addPeriod(ini,fr,pg+k)).slice(0,5)).join(" · ")+' …':"Informe a data de início para ver os vencimentos."}
     const val=$("#f-cnhValidade");if(val){const h=$("#h-cnh"),i=val.value?cnhInfo({cnhValidade:val.value}):null;h.className="hint full "+(i?i.cls==="ok"?"ok":"bad":"");h.textContent=i?i.txt:""}
   };
   upd();
@@ -646,7 +659,15 @@ async function del(){
     if(deps)return toast("Encerre a locação ativa antes de excluir.");
     sheet.confirmDel=true;btn.textContent="Toque de novo para excluir";btn.classList.add("pri");btn.style.background="var(--out)";btn.style.borderColor="var(--out)";btn.style.color="#fff";return;
   }
-  try{await db.collection(sheet.col).doc(sheet.id).delete();closeSheet();toast("Excluído")}catch(e){dbErr(e)}
+  try{if(sheet.kind==="lanc")await delLanc(sheet.id);else await db.collection(sheet.col).doc(sheet.id).delete();closeSheet();toast("Excluído")}catch(e){dbErr(e)}
+}
+async function delLanc(id){
+  const t=byId("lancamentos",id);if(!t||!db)return;
+  await db.collection("lancamentos").doc(id).delete();
+  if(t.multaId){const m=byId("multas",t.multaId);if(m){const d=Object.assign({},m);delete d.id;
+    if(m.lancPagoId===id){delete d.lancPagoId;d.pagamento="aberta";delete d.dataPagamento;delete d.valorPago}
+    if(m.lancRecebidoId===id){delete d.lancRecebidoId;d.cobranca="a_cobrar"}
+    await db.collection("multas").doc(m.id).set(d)}}
 }
 async function clearExamples(){
   if(!db)return;
@@ -682,6 +703,9 @@ document.addEventListener("click",e=>{
     case "edit-lanc":return formLanc(byId("lancamentos",id));
     case "pagar":{const l=byId("locacoes",id);if(!l)return;const i=locInfo(l);return formLanc({tipo:"receita",categoria:MENS,locacaoId:l.id,veiculoId:l.veiculoId,valor:l.valor,data:todayIso(),descricao:"Pagamento referente a "+fd(i.prox)})}
     case "clear-ex":return clearExamples();
+    case "del-lanc":
+      if(pendDel!==id){pendDel=id;clearTimeout(pendT);pendT=setTimeout(()=>{pendDel=null;render()},5000);return render()}
+      pendDel=null;clearTimeout(pendT);return delLanc(id).then(()=>toast("Lançamento excluído")).catch(dbErr);
     case "new-multa":if(!S.veiculos.length)return toast("Cadastre um veículo primeiro.");return formMulta();
     case "edit-multa":return formMulta(byId("multas",id));
   }
