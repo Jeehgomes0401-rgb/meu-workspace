@@ -13,6 +13,7 @@ Regras:
 - Todo conteúdo, anúncio ou impulsionamento da JR Rastreamento vai **somente** no perfil JR Rastreamentos.
 - **Nunca** usar o @jeffersoncapao nem as páginas Rocam como identidade de anúncios da JR.
 - Antes de publicar ou criar qualquer anúncio, confirmar com o usuário em qual perfil será publicado.
+- O usuário pode pedir postagens no @jeffersoncapao (conteúdo pessoal/policial dele). Isso é permitido, desde que não seja conteúdo da JR. Sempre mostrar imagem + legenda + perfil e esperar o "ok" antes de publicar.
 - Situação em 17/11/2026: o perfil JR Rastreamentos ainda **não** estava vinculado ao Meta; o único Instagram vinculado à conta de anúncios "Jr. Anuncios" era o @jeffersoncapao. Se o JR ainda não aparecer, não publicar e pedir ao usuário para vinculá-lo.
 
 ## Dados da JR Rastreamento
